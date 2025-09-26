@@ -6,14 +6,18 @@ import { ThemedView } from '@/components/ui/ThemedView';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { TouchableOpacity } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
-import { useAppStore } from '@/store/useAppStore';
+import api from '@/api';
 
 export default function LoginScreen() {
   const { colors } = useTheme();
-  const login = useAppStore(state => state.login);
-  const [email, setEmail] = useState('demo@evrenter.com');
-  const [password, setPassword] = useState('123456');
+  // Hàm gọi API đăng nhập
+  const login = async (data: { email: string; password: string }) => {
+    return api.post('/api/auth/login', data);
+  };
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -25,8 +29,8 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const success = await login(email, password);
-      if (success) {
+      const response = await login({ email, password });
+      if (response.status === 200 || response.status === 201) {
         router.replace('/(tabs)');
       } else {
         Alert.alert('Lỗi', 'Email hoặc mật khẩu không đúng');
@@ -73,18 +77,17 @@ export default function LoginScreen() {
               secureTextEntry={!showPassword}
               leftIcon={<Lock size={20} color={colors.textSecondary} />}
               rightIcon={
-                <Button
-                  title=""
-                  variant="outline"
+                <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
                   style={styles.eyeButton}
+                  activeOpacity={0.7}
                 >
                   {showPassword ? (
-                    <EyeOff size={20} color={colors.textSecondary} />
+                    <EyeOff size={20} color={'#000'} />
                   ) : (
-                    <Eye size={20} color={colors.textSecondary} />
+                    <Eye size={20} color={'#000'} />
                   )}
-                </Button>
+                </TouchableOpacity>
               }
             />
 

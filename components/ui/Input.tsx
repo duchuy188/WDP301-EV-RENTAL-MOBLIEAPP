@@ -92,8 +92,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 12,
     top: '50%',
-    transform: [{ translateY: -12 }],
-    zIndex: 1,
+    transform: [{ translateY: -16 }], // dịch icon lên giữa input hơn
+    zIndex: 10, // tăng zIndex để icon nổi lên trên
+    backgroundColor: 'transparent',
+    padding: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 32,
+    width: 32,
   },
   error: {
     fontSize: 12,
