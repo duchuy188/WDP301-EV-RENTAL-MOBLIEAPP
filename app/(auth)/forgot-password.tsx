@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/ui/ThemedText';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useTheme } from '@/hooks/useTheme';
+import { forgotPassword } from '@/api/auth';
 
 export default function ForgotPasswordScreen() {
   const { colors } = useTheme();
@@ -26,6 +27,20 @@ export default function ForgotPasswordScreen() {
       setLoading(false);
       setSent(true);
     }, 2000);
+  };
+
+  const handleForgotPassword = async (email: string) => {
+    if (loading) return; // chống spam
+    setLoading(true);
+    try {
+      await forgotPassword({ email });
+      setSent(true); // chuyển sang màn hình thành công
+      Alert.alert('Thành công', 'Vui lòng kiểm tra email để đặt lại mật khẩu!');
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể gửi yêu cầu. Vui lòng thử lại!');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (sent) {
@@ -98,9 +113,10 @@ export default function ForgotPasswordScreen() {
           />
 
           <Button
-            title="Gửi hướng dẫn"
-            onPress={handleResetPassword}
+            title="Gửi email"
+            onPress={() => handleForgotPassword(email)}
             loading={loading}
+            disabled={loading}
             fullWidth
             style={styles.resetButton}
           />

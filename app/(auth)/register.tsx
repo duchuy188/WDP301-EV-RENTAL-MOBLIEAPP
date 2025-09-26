@@ -6,30 +6,42 @@ import { ThemedView } from '@/components/ui/ThemedView';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { TouchableOpacity } from 'react-native';
 import { useTheme } from '@/hooks/useTheme';
-import { useAppStore } from '@/store/useAppStore';
+import api from '@/api';
 
 export default function RegisterScreen() {
   const { colors } = useTheme();
-  const register = useAppStore(state => state.register);
+  // Hàm gọi API đăng ký
+  const register = async (data: { fullname: string; email: string; password: string }) => {
+    return api.post('/api/auth/register', data);
+  };
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: '',
     password: '',
     confirmPassword: '',
-    licenseNumber: '',
   });
+  const [emailError, setEmailError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
-    const { name, email, phone, password, confirmPassword, licenseNumber } = formData;
+    const { name, email, password, confirmPassword } = formData;
 
-    if (!name || !email || !phone || !password || !confirmPassword || !licenseNumber) {
+    if (!name || !email || !password || !confirmPassword) {
       Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin');
       return;
+    }
+
+    // Rule kiểm tra email hợp lệ
+    const emailRegex = /^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/;
+    if (!emailRegex.test(email)) {
+      setEmailError('Email không hợp lệ');
+      return;
+    } else {
+      setEmailError('');
     }
 
     if (password !== confirmPassword) {
@@ -37,26 +49,30 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert('Lỗi', 'Mật khẩu phải có ít nhất 6 ký tự');
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+    if (!passwordRegex.test(password)) {
+      Alert.alert(
+        'Lỗi',
+        'Mật khẩu phải có ít nhất 8 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt'
+      );
       return;
     }
 
     setLoading(true);
     try {
-      const success = await register({
-        name,
+      const response = await register({
+        fullname: name,
         email,
-        phone,
-        licenseNumber,
+        password,
       });
-      
-      if (success) {
+      if (response.status === 200 || response.status === 201) {
         Alert.alert(
           'Đăng ký thành công',
-          'Tài khoản của bạn đang chờ xác thực. Bạn sẽ được chuyển đến trang chủ.',
-          [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+          'Tài khoản của bạn đang chờ xác thực. Bạn sẽ được chuyển đến trang đăng nhập.',
+          [{ text: 'OK', onPress: () => router.replace('/(auth)/login') }]
         );
+      } else {
+        Alert.alert('Lỗi', 'Đăng ký không thành công');
       }
     } catch (error) {
       Alert.alert('Lỗi', 'Có lỗi xảy ra, vui lòng thử lại');
@@ -78,7 +94,7 @@ export default function RegisterScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <ThemedText type="title" style={styles.title}>
-              Tạo tài khoản mới 🚗
+              Tạo tài khoản mới
             </ThemedText>
             <ThemedText style={[styles.subtitle, { color: colors.textSecondary }]}>
               Đăng ký để bắt đầu thuê xe điện
@@ -97,49 +113,37 @@ export default function RegisterScreen() {
             <Input
               label="Email"
               value={formData.email}
-              onChangeText={updateField('email')}
+              onChangeText={value => {
+                updateField('email')(value);
+                setEmailError('');
+              }}
               placeholder="Nhập email"
               keyboardType="email-address"
               autoCapitalize="none"
               leftIcon={<Mail size={20} color={colors.textSecondary} />}
+              error={emailError}
             />
 
-            <Input
-              label="Số điện thoại"
-              value={formData.phone}
-              onChangeText={updateField('phone')}
-              placeholder="Nhập số điện thoại"
-              keyboardType="phone-pad"
-              leftIcon={<Phone size={20} color={colors.textSecondary} />}
-            />
-
-            <Input
-              label="Số giấy phép lái xe"
-              value={formData.licenseNumber}
-              onChangeText={updateField('licenseNumber')}
-              placeholder="Nhập số GPLX"
-              leftIcon={<CreditCard size={20} color={colors.textSecondary} />}
-            />
+            {/* Đã xoá trường Số điện thoại và Số giấy phép lái xe */}
 
             <Input
               label="Mật khẩu"
               value={formData.password}
               onChangeText={updateField('password')}
-              placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)"
+              placeholder="Nhập mật khẩu"
               secureTextEntry={!showPassword}
               rightIcon={
-                <Button
-                  title=""
-                  variant="outline"
+                <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
                   style={styles.eyeButton}
+                  activeOpacity={0.7}
                 >
                   {showPassword ? (
-                    <EyeOff size={20} color={colors.textSecondary} />
+                    <EyeOff size={20} color={'#000'} />
                   ) : (
-                    <Eye size={20} color={colors.textSecondary} />
+                    <Eye size={20} color={'#000'} />
                   )}
-                </Button>
+                </TouchableOpacity>
               }
             />
 
@@ -150,18 +154,17 @@ export default function RegisterScreen() {
               placeholder="Nhập lại mật khẩu"
               secureTextEntry={!showConfirmPassword}
               rightIcon={
-                <Button
-                  title=""
-                  variant="outline"
+                <TouchableOpacity
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                   style={styles.eyeButton}
+                  activeOpacity={0.7}
                 >
                   {showConfirmPassword ? (
-                    <EyeOff size={20} color={colors.textSecondary} />
+                    <EyeOff size={20} color={'#000'} />
                   ) : (
-                    <Eye size={20} color={colors.textSecondary} />
+                    <Eye size={20} color={'#000'} />
                   )}
-                </Button>
+                </TouchableOpacity>
               }
             />
 
