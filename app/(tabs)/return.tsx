@@ -1,495 +1,469 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { MapPin, Camera, CreditCard, CircleCheck as CheckCircle, TriangleAlert as AlertTriangle } from 'lucide-react-native';
-import { ThemedView } from '@/components/ui/ThemedView';
-import { ThemedText } from '@/components/ui/ThemedText';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { useTheme } from '@/hooks/useTheme';
-import { useAppStore } from '@/store/useAppStore';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  useColorScheme,
+  Alert,
+  TextInput,
+  Image
+} from 'react-native';
+import { MapPin, Camera, CircleCheck as CheckCircle, DollarSign, Clock, Star } from 'lucide-react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { useThemeStore } from '@/store/themeStore';
+import { useVehicleStore } from '@/store/vehicleStore';
+
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function ReturnScreen() {
-  const { colors } = useTheme();
-  const { currentRental, endRental } = useAppStore();
-  const [currentStep, setCurrentStep] = useState<'location' | 'inspection' | 'payment' | 'complete'>('location');
-  const [selectedStation, setSelectedStation] = useState<string>('');
-  const [damages, setDamages] = useState<string[]>([]);
-  const [photos, setPhotos] = useState<string[]>([]);
+  const colorScheme = useColorScheme();
+  const { colors } = useThemeStore();
+  const { currentRental, completeRental } = useVehicleStore();
+  const [selectedLocation, setSelectedLocation] = useState('456 Lê Lợi, Quận 3, TP.HCM');
+  const [damageNotes, setDamageNotes] = useState('');
+  const [photosUploaded, setPhotosUploaded] = useState(false);
+  const [staffConfirmed, setStaffConfirmed] = useState(false);
+  const [rating, setRating] = useState(5);
 
-  const stations = [
-    { id: '1', name: 'Hoàn Kiếm Station', address: 'Hàng Bài, Hoàn Kiếm' },
-    { id: '2', name: 'Tràng Tiền Station', address: 'Tràng Tiền, Hoàn Kiếm' },
-    { id: '3', name: 'Lý Thái Tổ Station', address: 'Lý Thái Tổ, Hoàn Kiếm' }
-  ];
-
-  const damageOptions = [
-    'Trầy xước nhẹ',
-    'Vỡ gương',
-    'Lốp xe bị hỏng',
-    'Đèn không hoạt động',
-    'Phanh kém',
-    'Khác'
-  ];
-
-  const handleSelectStation = (stationId: string) => {
-    setSelectedStation(stationId);
-    setCurrentStep('inspection');
+  // Mock calculation data
+  const rentalData = {
+    duration: '4 giờ 30 phút',
+    distance: '45 km',
+    baseCost: 300000,
+    additionalFees: 25000,
+    totalCost: 325000,
   };
 
-  const handleToggleDamage = (damage: string) => {
-    setDamages(prev => 
-      prev.includes(damage)
-        ? prev.filter(d => d !== damage)
-        : [...prev, damage]
+  const returnLocations = [
+    { id: 1, name: 'Lê Lợi, Quận 3', address: '456 Lê Lợi, Quận 3, TP.HCM', distance: '0.5km' },
+    { id: 2, name: 'Nguyễn Huệ, Quận 1', address: '123 Nguyễn Huệ, Quận 1, TP.HCM', distance: '1.2km' },
+    { id: 3, name: 'Võ Văn Tần, Quận 3', address: '789 Võ Văn Tần, Quận 3, TP.HCM', distance: '0.8km' },
+  ];
+
+  const handleUploadPhotos = () => {
+    Alert.alert(
+      'Chụp ảnh xe',
+      'Chụp ảnh tình trạng xe trước khi trả',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        { 
+          text: 'Chụp ảnh', 
+          onPress: () => {
+            // Mock photo upload
+            setTimeout(() => {
+              setPhotosUploaded(true);
+              Alert.alert('Thành công', 'Đã tải lên ảnh tình trạng xe');
+            }, 1000);
+          }
+        }
+      ]
     );
   };
 
-  const handleTakePhoto = () => {
-    // Mock photo taking
-    Alert.alert('Camera', 'Ảnh đã được chụp và lưu!');
-    setPhotos(prev => [...prev, `photo_${Date.now()}.jpg`]);
-  };
-
-  const handleCompleteInspection = () => {
-    setCurrentStep('payment');
-  };
-
-  const handlePayment = () => {
-    const additionalCharges = damages.length * 50000; // Mock additional charges
-    endRental(damages, additionalCharges);
-    setCurrentStep('complete');
-  };
-
-  const renderLocationStep = () => (
-    <View style={styles.stepContainer}>
-      <View style={styles.stepHeader}>
-        <MapPin size={32} color={colors.primary} />
-        <ThemedText type="subtitle">Chọn điểm trả xe</ThemedText>
-        <ThemedText style={[styles.stepDescription, { color: colors.textSecondary }]}>
-          Chọn một trong các điểm trả xe gần bạn
-        </ThemedText>
-      </View>
-
-      {stations.map((station) => (
-        <Card key={station.id} style={styles.stationCard}>
-          <View style={styles.stationInfo}>
-            <ThemedText type="subtitle">{station.name}</ThemedText>
-            <ThemedText style={[styles.stationAddress, { color: colors.textSecondary }]}>
-              {station.address}
-            </ThemedText>
-          </View>
-          <Button
-            title="Chọn"
-            onPress={() => handleSelectStation(station.id)}
-            variant="outline"
-          />
-        </Card>
-      ))}
-    </View>
-  );
-
-  const renderInspectionStep = () => (
-    <View style={styles.stepContainer}>
-      <View style={styles.stepHeader}>
-        <Camera size={32} color={colors.primary} />
-        <ThemedText type="subtitle">Kiểm tra tình trạng xe</ThemedText>
-        <ThemedText style={[styles.stepDescription, { color: colors.textSecondary }]}>
-          Ghi nhận tình trạng xe trước khi trả
-        </ThemedText>
-      </View>
-
-      <Card style={styles.photosSection}>
-        <ThemedText type="subtitle" style={styles.sectionTitle}>
-          Chụp ảnh xe (bắt buộc)
-        </ThemedText>
-        <Button
-          title="Chụp ảnh tình trạng xe"
-          onPress={handleTakePhoto}
-          variant="outline"
-          fullWidth
-          style={styles.photoButton}
-        />
-        {photos.length > 0 && (
-          <ThemedText style={[styles.photoCount, { color: colors.success }]}>
-            ✓ Đã chụp {photos.length} ảnh
-          </ThemedText>
-        )}
-      </Card>
-
-      <Card style={styles.damagesSection}>
-        <ThemedText type="subtitle" style={styles.sectionTitle}>
-          Báo cáo hư hỏng (nếu có)
-        </ThemedText>
-        {damageOptions.map((damage) => (
-          <View key={damage} style={styles.damageOption}>
-            <Button
-              title=""
-              variant={damages.includes(damage) ? 'primary' : 'outline'}
-              onPress={() => handleToggleDamage(damage)}
-              style={styles.damageCheckbox}
-            >
-              {damages.includes(damage) && (
-                <CheckCircle size={16} color={colors.white} />
-              )}
-            </Button>
-            <ThemedText style={styles.damageText}>{damage}</ThemedText>
-          </View>
-        ))}
-      </Card>
-
-      <Button
-        title="Hoàn thành kiểm tra"
-        onPress={handleCompleteInspection}
-        disabled={photos.length === 0}
-        fullWidth
-        style={styles.actionButton}
-      />
-    </View>
-  );
-
-  const renderPaymentStep = () => {
-    if (!currentRental) return null;
-    
-    const duration = Math.ceil((new Date().getTime() - currentRental.startTime.getTime()) / (1000 * 60 * 60));
-    const baseCost = duration * currentRental.vehicle.pricePerHour;
-    const additionalCharges = damages.length * 50000;
-    const totalCost = baseCost + additionalCharges;
-
-    return (
-      <View style={styles.stepContainer}>
-        <View style={styles.stepHeader}>
-          <CreditCard size={32} color={colors.primary} />
-          <ThemedText type="subtitle">Thanh toán</ThemedText>
-          <ThemedText style={[styles.stepDescription, { color: colors.textSecondary }]}>
-            Xác nhận và thanh toán chi phí thuê xe
-          </ThemedText>
-        </View>
-
-        <Card style={styles.billCard}>
-          <ThemedText type="subtitle" style={styles.billTitle}>
-            HOÁ ĐƠN THUÊ XE
-          </ThemedText>
-          
-          <View style={styles.billRow}>
-            <ThemedText>Thời gian thuê:</ThemedText>
-            <ThemedText>{duration} giờ</ThemedText>
-          </View>
-          
-          <View style={styles.billRow}>
-            <ThemedText>Giá cơ bản:</ThemedText>
-            <ThemedText>{baseCost.toLocaleString('vi-VN')}đ</ThemedText>
-          </View>
-          
-          {damages.length > 0 && (
-            <View style={styles.billRow}>
-              <ThemedText style={{ color: colors.warning }}>
-                Phí hư hỏng ({damages.length} mục):
-              </ThemedText>
-              <ThemedText style={{ color: colors.warning }}>
-                +{additionalCharges.toLocaleString('vi-VN')}đ
-              </ThemedText>
-            </View>
-          )}
-          
-          <View style={[styles.billRow, styles.totalRow]}>
-            <ThemedText type="subtitle">Tổng cộng:</ThemedText>
-            <ThemedText type="subtitle" style={{ color: colors.primary }}>
-              {totalCost.toLocaleString('vi-VN')}đ
-            </ThemedText>
-          </View>
-        </Card>
-
-        {damages.length > 0 && (
-          <Card style={[styles.warningCard, { backgroundColor: colors.warning + '20' }]}>
-            <View style={styles.warningHeader}>
-              <AlertTriangle size={20} color={colors.warning} />
-              <ThemedText style={[styles.warningTitle, { color: colors.warning }]}>
-                Phát hiện hư hỏng
-              </ThemedText>
-            </View>
-            {damages.map((damage, index) => (
-              <ThemedText key={index} style={[styles.damageItem, { color: colors.warning }]}>
-                • {damage}
-              </ThemedText>
-            ))}
-          </Card>
-        )}
-
-        <Button
-          title="Xác nhận thanh toán"
-          onPress={handlePayment}
-          fullWidth
-          style={styles.actionButton}
-        />
-      </View>
+  const handleStaffConfirmation = () => {
+    Alert.alert(
+      'Xác nhận từ nhân viên',
+      'Nhân viên đã kiểm tra và xác nhận tình trạng xe',
+      [
+        { text: 'OK', onPress: () => setStaffConfirmed(true) }
+      ]
     );
   };
 
-  const renderCompleteStep = () => (
-    <View style={styles.stepContainer}>
-      <View style={styles.stepHeader}>
-        <CheckCircle size={64} color={colors.success} />
-        <ThemedText type="title" style={[styles.successTitle, { color: colors.success }]}>
-          Trả xe thành công!
-        </ThemedText>
-        <ThemedText style={[styles.stepDescription, { color: colors.textSecondary }]}>
-          Cảm ơn bạn đã sử dụng dịch vụ. Hẹn gặp lại!
-        </ThemedText>
-      </View>
+  const handlePayment = async () => {
+    if (!photosUploaded || !staffConfirmed) {
+      Alert.alert('Chưa hoàn thành', 'Vui lòng hoàn thành tất cả các bước trước khi thanh toán');
+      return;
+    }
 
-      <Card style={styles.summaryCard}>
-        <ThemedText type="subtitle" style={styles.summaryTitle}>
-          TÓNG KẾT CHUYẾN ĐI
-        </ThemedText>
-        
-        <View style={styles.summaryRow}>
-          <ThemedText>Thời gian:</ThemedText>
-          <ThemedText>{new Date().toLocaleTimeString('vi-VN')}</ThemedText>
-        </View>
-        
-        <View style={styles.summaryRow}>
-          <ThemedText>Quãng đường:</ThemedText>
-          <ThemedText>~{Math.floor(Math.random() * 30 + 10)} km</ThemedText>
-        </View>
-        
-        <View style={styles.summaryRow}>
-          <ThemedText>Tiết kiệm CO₂:</ThemedText>
-          <ThemedText style={{ color: colors.success }}>
-            ~{Math.floor(Math.random() * 5 + 2)} kg
-          </ThemedText>
-        </View>
-      </Card>
+    Alert.alert(
+      'Xác nhận thanh toán',
+      `Tổng chi phí: ${formatPrice(rentalData.totalCost)}`,
+      [
+        { text: 'Hủy', style: 'cancel' },
+        { 
+          text: 'Thanh toán', 
+          onPress: async () => {
+            if (currentRental) {
+              await completeRental(currentRental.id, {
+                location: selectedLocation,
+                totalCost: rentalData.totalCost,
+                distance: 45,
+              });
+              Alert.alert('Thành công', 'Đã hoàn thành chuyến thuê xe!');
+            }
+          }
+        }
+      ]
+    );
+  };
 
-      <Button
-        title="Về trang chủ"
-        onPress={() => {/* Navigate to home */}}
-        fullWidth
-        style={styles.actionButton}
-      />
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+      minimumFractionDigits: 0,
+    }).format(price);
+  };
 
-      <Button
-        title="Đánh giá chuyến đi"
-        variant="outline"
-        onPress={() => Alert.alert('Đánh giá', 'Cảm ơn phản hồi của bạn!')}
-        fullWidth
-        style={styles.reviewButton}
-      />
-    </View>
-  );
+  const renderStars = () => {
+    return Array.from({ length: 5 }, (_, index) => (
+      <TouchableOpacity
+        key={index}
+        onPress={() => setRating(index + 1)}
+      >
+        <Star
+          size={32}
+          color="#FFD700"
+          fill={index < rating ? "#FFD700" : "transparent"}
+        />
+      </TouchableOpacity>
+    ));
+  };
 
-  if (!currentRental && currentStep !== 'complete') {
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      paddingTop: 60,
+      paddingHorizontal: 20,
+      paddingBottom: 20,
+      backgroundColor: colors.surface,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: 'bold',
+      color: colors.text,
+      marginBottom: 8,
+      fontFamily: 'Inter-Bold',
+    },
+    subtitle: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      fontFamily: 'Inter-Regular',
+    },
+    content: {
+      flex: 1,
+      padding: 20,
+    },
+    section: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 20,
+      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 16,
+      fontFamily: 'Inter-Medium',
+    },
+    locationOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+      borderWidth: 1,
+      marginBottom: 8,
+    },
+    selectedLocation: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primary + '10',
+    },
+    unselectedLocation: {
+      borderColor: colors.border,
+      backgroundColor: 'transparent',
+    },
+    locationInfo: {
+      flex: 1,
+      marginLeft: 12,
+    },
+    locationName: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      fontFamily: 'Inter-Medium',
+    },
+    locationAddress: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      marginTop: 2,
+      fontFamily: 'Inter-Regular',
+    },
+    locationDistance: {
+      fontSize: 12,
+      color: colors.primary,
+      fontWeight: '600',
+      fontFamily: 'Inter-Medium',
+    },
+    uploadSection: {
+      alignItems: 'center',
+      paddingVertical: 20,
+      borderWidth: 2,
+      borderColor: photosUploaded ? colors.success : colors.border,
+      borderStyle: 'dashed',
+      borderRadius: 12,
+      marginBottom: 16,
+    },
+    uploadText: {
+      fontSize: 16,
+      color: photosUploaded ? colors.success : colors.textSecondary,
+      marginTop: 8,
+      fontFamily: 'Inter-Regular',
+    },
+    notesInput: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      padding: 16,
+      height: 100,
+      textAlignVertical: 'top',
+      fontSize: 16,
+      color: colors.text,
+      fontFamily: 'Inter-Regular',
+    },
+    confirmationButton: {
+      backgroundColor: staffConfirmed ? colors.success : colors.primary,
+      borderRadius: 12,
+      padding: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    confirmationText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: '600',
+      fontFamily: 'Inter-Medium',
+    },
+    costRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 8,
+    },
+    costLabel: {
+      fontSize: 16,
+      color: colors.textSecondary,
+      fontFamily: 'Inter-Regular',
+    },
+    costValue: {
+      fontSize: 16,
+      color: colors.text,
+      fontWeight: '600',
+      fontFamily: 'Inter-Medium',
+    },
+    totalRow: {
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingTop: 16,
+      marginTop: 8,
+    },
+    totalLabel: {
+      fontSize: 18,
+      fontWeight: 'bold',
+      color: colors.text,
+      fontFamily: 'Inter-Bold',
+    },
+    totalValue: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: colors.primary,
+      fontFamily: 'Inter-Bold',
+    },
+    ratingSection: {
+      alignItems: 'center',
+      paddingVertical: 20,
+    },
+    ratingTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 12,
+      fontFamily: 'Inter-Medium',
+    },
+    starsRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    paymentButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      height: 50,
+      justifyContent: 'center',
+      alignItems: 'center',
+      margin: 20,
+    },
+    paymentButtonDisabled: {
+      backgroundColor: colors.border,
+    },
+    paymentButtonText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: 'bold',
+      fontFamily: 'Inter-Bold',
+    },
+  });
+
+  if (!currentRental) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.emptyContainer}>
-          <AlertTriangle size={64} color={colors.textSecondary} />
-          <ThemedText type="subtitle" style={[styles.emptyTitle, { color: colors.textSecondary }]}>
-            Không có chuyến thuê nào
-          </ThemedText>
-          <ThemedText style={[styles.emptyDescription, { color: colors.textSecondary }]}>
-            Bạn cần nhận xe trước khi có thể trả xe
-          </ThemedText>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Trả xe</Text>
+          <Text style={styles.subtitle}>Chưa có chuyến thuê nào đang hoạt động</Text>
         </View>
-      </SafeAreaView>
+        <View style={[styles.content, { justifyContent: 'center', alignItems: 'center' }]}>
+          <Text style={[styles.subtitle, { textAlign: 'center' }]}>
+            Vui lòng đặt xe trước khi sử dụng tính năng này
+          </Text>
+        </View>
+      </View>
     );
   }
 
-  const renderCurrentStep = () => {
-    switch (currentStep) {
-      case 'location':
-        return renderLocationStep();
-      case 'inspection':
-        return renderInspectionStep();
-      case 'payment':
-        return renderPaymentStep();
-      case 'complete':
-        return renderCompleteStep();
-      default:
-        return renderLocationStep();
-    }
-  };
-
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.header}>
-        <ThemedText type="title">Trả xe</ThemedText>
-        <View style={styles.progressContainer}>
-          {['location', 'inspection', 'payment', 'complete'].map((step, index) => (
-            <View 
-              key={step} 
-              style={[
-                styles.progressDot,
-                {
-                  backgroundColor: ['location', 'inspection', 'payment', 'complete'].indexOf(currentStep) >= index 
-                    ? colors.primary 
-                    : colors.border
-                }
-              ]} 
-            />
-          ))}
-        </View>
-      </View>
+    <View style={styles.container}>
+      <Animated.View entering={FadeInUp.delay(100)} style={styles.header}>
+        <Text style={styles.title}>Trả xe</Text>
+        <Text style={styles.subtitle}>Hoàn thành chuyến thuê xe của bạn</Text>
+      </Animated.View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {renderCurrentStep()}
+        {/* Return Location Selection */}
+        <Animated.View entering={FadeInDown.delay(200)} style={styles.section}>
+          <Text style={styles.sectionTitle}>Chọn điểm trả xe</Text>
+          {returnLocations.map((location) => (
+            <TouchableOpacity
+              key={location.id}
+              style={[
+                styles.locationOption,
+                selectedLocation === location.address 
+                  ? styles.selectedLocation 
+                  : styles.unselectedLocation
+              ]}
+              onPress={() => setSelectedLocation(location.address)}
+            >
+              <MapPin 
+                size={20} 
+                color={selectedLocation === location.address ? colors.primary : colors.textSecondary} 
+              />
+              <View style={styles.locationInfo}>
+                <Text style={styles.locationName}>{location.name}</Text>
+                <Text style={styles.locationAddress}>{location.address}</Text>
+              </View>
+              <Text style={styles.locationDistance}>{location.distance}</Text>
+            </TouchableOpacity>
+          ))}
+        </Animated.View>
+
+        {/* Photo Upload */}
+        <Animated.View entering={FadeInDown.delay(300)} style={styles.section}>
+          <Text style={styles.sectionTitle}>Chụp ảnh tình trạng xe</Text>
+          <TouchableOpacity style={styles.uploadSection} onPress={handleUploadPhotos}>
+            {photosUploaded ? (
+              <CheckCircle size={32} color={colors.success} />
+            ) : (
+              <Camera size={32} color={colors.textSecondary} />
+            )}
+            <Text style={styles.uploadText}>
+              {photosUploaded ? 'Đã tải lên ảnh thành công' : 'Chụp ảnh xe trước khi trả'}
+            </Text>
+          </TouchableOpacity>
+          
+          <Text style={[styles.sectionTitle, { fontSize: 16, marginBottom: 8 }]}>
+            Ghi chú thêm
+          </Text>
+          <TextInput
+            style={styles.notesInput}
+            value={damageNotes}
+            onChangeText={setDamageNotes}
+            placeholder="Ghi chú về tình trạng xe (nếu có)..."
+            placeholderTextColor={colors.textSecondary}
+            multiline
+          />
+        </Animated.View>
+
+        {/* Staff Confirmation */}
+        <Animated.View entering={FadeInDown.delay(400)} style={styles.section}>
+          <Text style={styles.sectionTitle}>Xác nhận từ nhân viên</Text>
+          <TouchableOpacity 
+            style={styles.confirmationButton}
+            onPress={handleStaffConfirmation}
+          >
+            {staffConfirmed ? (
+              <CheckCircle size={20} color="#FFFFFF" />
+            ) : (
+              <Clock size={20} color="#FFFFFF" />
+            )}
+            <Text style={styles.confirmationText}>
+              {staffConfirmed ? 'Đã xác nhận' : 'Chờ xác nhận'}
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* Cost Summary */}
+        <Animated.View entering={FadeInDown.delay(500)} style={styles.section}>
+          <Text style={styles.sectionTitle}>Tóm tắt chi phí</Text>
+          
+          <View style={styles.costRow}>
+            <Text style={styles.costLabel}>Thời gian thuê:</Text>
+            <Text style={styles.costValue}>{rentalData.duration}</Text>
+          </View>
+          
+          <View style={styles.costRow}>
+            <Text style={styles.costLabel}>Quãng đường:</Text>
+            <Text style={styles.costValue}>{rentalData.distance}</Text>
+          </View>
+          
+          <View style={styles.costRow}>
+            <Text style={styles.costLabel}>Chi phí cơ bản:</Text>
+            <Text style={styles.costValue}>{formatPrice(rentalData.baseCost)}</Text>
+          </View>
+          
+          <View style={styles.costRow}>
+            <Text style={styles.costLabel}>Phí phát sinh:</Text>
+            <Text style={styles.costValue}>{formatPrice(rentalData.additionalFees)}</Text>
+          </View>
+          
+          <View style={[styles.costRow, styles.totalRow]}>
+            <Text style={styles.totalLabel}>Tổng cộng:</Text>
+            <Text style={styles.totalValue}>{formatPrice(rentalData.totalCost)}</Text>
+          </View>
+        </Animated.View>
+
+        {/* Rating */}
+        <Animated.View entering={FadeInDown.delay(600)} style={styles.section}>
+          <View style={styles.ratingSection}>
+            <Text style={styles.ratingTitle}>Đánh giá chuyến đi</Text>
+            <View style={styles.starsRow}>
+              {renderStars()}
+            </View>
+          </View>
+        </Animated.View>
       </ScrollView>
-    </SafeAreaView>
+
+      <AnimatedTouchableOpacity
+        entering={FadeInDown.delay(700)}
+        style={[
+          styles.paymentButton,
+          (!photosUploaded || !staffConfirmed) && styles.paymentButtonDisabled
+        ]}
+        onPress={handlePayment}
+        disabled={!photosUploaded || !staffConfirmed}
+      >
+        <Text style={styles.paymentButtonText}>
+          Thanh toán {formatPrice(rentalData.totalCost)}
+        </Text>
+      </AnimatedTouchableOpacity>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    marginBottom: 24,
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 16,
-  },
-  progressDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-  },
-  stepContainer: {
-    flex: 1,
-  },
-  stepHeader: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  stepDescription: {
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 20,
-  },
-  stationCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  stationInfo: {
-    flex: 1,
-  },
-  stationAddress: {
-    fontSize: 14,
-    marginTop: 4,
-  },
-  photosSection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    marginBottom: 16,
-  },
-  photoButton: {
-    marginBottom: 12,
-  },
-  photoCount: {
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  damagesSection: {
-    marginBottom: 24,
-  },
-  damageOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-  },
-  damageCheckbox: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    padding: 0,
-  },
-  damageText: {
-    flex: 1,
-    fontSize: 14,
-  },
-  billCard: {
-    marginBottom: 24,
-  },
-  billTitle: {
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  billRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  totalRow: {
-    borderTopWidth: 1,
-    marginTop: 12,
-    paddingTop: 16,
-  },
-  warningCard: {
-    marginBottom: 24,
-  },
-  warningHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  warningTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  damageItem: {
-    fontSize: 14,
-    marginLeft: 8,
-    marginBottom: 4,
-  },
-  successTitle: {
-    textAlign: 'center',
-    marginTop: 16,
-  },
-  summaryCard: {
-    marginBottom: 24,
-  },
-  summaryTitle: {
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  actionButton: {
-    marginTop: 16,
-    marginBottom: 16,
-  },
-  reviewButton: {
-    marginBottom: 24,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  emptyTitle: {
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyDescription: {
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-});

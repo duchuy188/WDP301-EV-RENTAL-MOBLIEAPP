@@ -1,19 +1,23 @@
 import { useEffect } from 'react';
-import { router } from 'expo-router';
-import { useAppStore } from '@/store/useAppStore';
-import { ThemedView } from '@/components/ui/ThemedView';
+import { Redirect } from 'expo-router';
+import { useAuthStore } from '@/store/authStore';
+import { useThemeStore } from '@/store/themeStore';
+import { useVehicleStore } from '@/store/vehicleStore';
 
-export default function IndexScreen() {
-  const isAuthenticated = useAppStore(state => state.isAuthenticated);
+export default function Index() {
+  const { isAuthenticated, checkAuthState } = useAuthStore();
+  const { initTheme } = useThemeStore();
+  const { loadMockData } = useVehicleStore();
 
   useEffect(() => {
-    // Redirect based on authentication status
-    if (isAuthenticated) {
-      router.replace('/(tabs)');
-    } else {
-      router.replace('/(auth)/login');
-    }
-  }, [isAuthenticated]);
+    checkAuthState();
+    initTheme();
+    loadMockData();
+  }, []);
 
-  return <ThemedView style={{ flex: 1 }} />;
+  if (isAuthenticated) {
+    return <Redirect href="/(tabs)" />;
+  }
+
+  return <Redirect href="/(auth)/login" />;
 }

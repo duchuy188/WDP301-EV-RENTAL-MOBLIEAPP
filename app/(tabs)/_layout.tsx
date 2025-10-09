@@ -1,35 +1,58 @@
 import { Tabs } from 'expo-router';
-import { MapPin, Zap, RotateCcw, History, User } from 'lucide-react-native';
-import { useTheme } from '@/hooks/useTheme';
+import { useColorScheme } from 'react-native';
+import { Chrome as Home, Car, MapPin, History, User } from 'lucide-react-native';
 
 export default function TabLayout() {
-  const { colors } = useTheme();
+  const colorScheme = useColorScheme();
+  
+  const colors = {
+    light: {
+      primary: '#1B5E20',
+      secondary: '#4CAF50',
+      background: '#F5F5F5',
+      surface: '#FFFFFF',
+      text: '#1A1A1A',
+      icon: '#666666',
+      activeIcon: '#1B5E20',
+    },
+    dark: {
+      primary: '#4CAF50',
+      secondary: '#66BB6A',
+      background: '#121212',
+      surface: '#1E1E1E',
+      text: '#FFFFFF',
+      icon: '#AAAAAA',
+      activeIcon: '#4CAF50',
+    }
+  };
+
+  const theme = colors[colorScheme ?? 'light'];
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
+          backgroundColor: theme.surface,
+          borderTopColor: colorScheme === 'dark' ? '#333' : '#E0E0E0',
+          borderTopWidth: 1,
+          height: 65,
           paddingBottom: 8,
-          height: 88,
+          paddingTop: 8,
         },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarActiveTintColor: theme.activeIcon,
+        tabBarInactiveTintColor: theme.icon,
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: '500',
-          marginTop: 4,
+          fontWeight: '600',
         },
-      }}
-    >
+      }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Đặt xe',
           tabBarIcon: ({ size, color }) => (
-            <MapPin size={size} color={color} />
+            <Home size={size} color={color} />
           ),
         }}
       />
@@ -38,7 +61,7 @@ export default function TabLayout() {
         options={{
           title: 'Nhận xe',
           tabBarIcon: ({ size, color }) => (
-            <Zap size={size} color={color} />
+            <Car size={size} color={color} />
           ),
         }}
       />
@@ -47,7 +70,7 @@ export default function TabLayout() {
         options={{
           title: 'Trả xe',
           tabBarIcon: ({ size, color }) => (
-            <RotateCcw size={size} color={color} />
+            <MapPin size={size} color={color} />
           ),
         }}
       />
@@ -63,7 +86,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Tài khoản',
+          title: 'Cá nhân',
           tabBarIcon: ({ size, color }) => (
             <User size={size} color={color} />
           ),
