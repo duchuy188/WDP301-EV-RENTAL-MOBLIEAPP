@@ -1,25 +1,55 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  Alert,
+  useColorScheme,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView
+} from 'react-native';
 import { Link, router } from 'expo-router';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
-import { ThemedView } from '@/components/ui/ThemedView';
-import { ThemedText } from '@/components/ui/ThemedText';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
-import { TouchableOpacity } from 'react-native';
-import { useTheme } from '@/hooks/useTheme';
-import api from '@/api';
+import { Eye, EyeOff, Mail, Lock } from 'lucide-react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { useAuthStore } from '@/store/authStore';
+
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function LoginScreen() {
-  const { colors } = useTheme();
-  // Hàm gọi API đăng nhập
-  const login = async (data: { email: string; password: string }) => {
-    return api.post('/api/auth/login', data);
-  };
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const colorScheme = useColorScheme();
+  const [email, setEmail] = useState('demo@evrent.com');
+  const [password, setPassword] = useState('password123');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const { login } = useAuthStore();
+
+  const colors = {
+    light: {
+      background: '#F5F5F5',
+      surface: '#FFFFFF',
+      primary: '#1B5E20',
+      secondary: '#4CAF50',
+      text: '#1A1A1A',
+      textSecondary: '#666666',
+      border: '#E0E0E0',
+    },
+    dark: {
+      background: '#121212',
+      surface: '#1E1E1E',
+      primary: '#4CAF50',
+      secondary: '#66BB6A',
+      text: '#FFFFFF',
+      textSecondary: '#AAAAAA',
+      border: '#333333',
+    }
+  };
+
+  const theme = colors[colorScheme ?? 'light'];
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -27,147 +57,233 @@ export default function LoginScreen() {
       return;
     }
 
-    setLoading(true);
+    setIsLoading(true);
     try {
-      const response = await login({ email, password });
-      if (response.status === 200 || response.status === 201) {
-        router.replace('/(tabs)');
-      } else {
-        Alert.alert('Lỗi', 'Email hoặc mật khẩu không đúng');
-      }
+      await login(email, password);
+      router.replace('/(tabs)');
     } catch (error) {
-      Alert.alert('Lỗi', 'Có lỗi xảy ra, vui lòng thử lại');
+      Alert.alert('Đăng nhập thất bại', 'Email hoặc mật khẩu không đúng');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    scrollView: {
+      flexGrow: 1,
+    },
+    header: {
+      flex: 0.4,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingTop: 60,
+    },
+    heroImage: {
+      width: 200,
+      height: 150,
+      marginBottom: 20,
+    },
+    title: {
+      fontSize: 32,
+      fontWeight: 'bold',
+      color: theme.primary,
+      marginBottom: 8,
+      fontFamily: 'Inter-Bold',
+    },
+    subtitle: {
+      fontSize: 16,
+      color: theme.textSecondary,
+      textAlign: 'center',
+      paddingHorizontal: 40,
+      fontFamily: 'Inter-Regular',
+    },
+    formContainer: {
+      flex: 0.6,
+      backgroundColor: theme.surface,
+      borderTopLeftRadius: 30,
+      borderTopRightRadius: 30,
+      paddingHorizontal: 30,
+      paddingTop: 40,
+    },
+    inputGroup: {
+      marginBottom: 20,
+    },
+    inputLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.text,
+      marginBottom: 8,
+      fontFamily: 'Inter-Medium',
+    },
+    inputContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 12,
+      backgroundColor: theme.surface,
+      paddingHorizontal: 16,
+      height: 50,
+    },
+    inputFocused: {
+      borderColor: theme.primary,
+      shadowColor: theme.primary,
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    input: {
+      flex: 1,
+      fontSize: 16,
+      color: theme.text,
+      marginLeft: 12,
+      fontFamily: 'Inter-Regular',
+    },
+    eyeButton: {
+      padding: 4,
+    },
+    forgotPassword: {
+      alignSelf: 'flex-end',
+      marginBottom: 30,
+    },
+    forgotText: {
+      color: theme.primary,
+      fontSize: 14,
+      fontWeight: '600',
+      fontFamily: 'Inter-Medium',
+    },
+    loginButton: {
+      backgroundColor: theme.primary,
+      borderRadius: 12,
+      height: 50,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 20,
+      shadowColor: theme.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 8,
+      elevation: 8,
+    },
+    loginButtonPressed: {
+      transform: [{ scale: 0.98 }],
+    },
+    loginText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: 'bold',
+      fontFamily: 'Inter-Bold',
+    },
+    registerContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    registerText: {
+      color: theme.textSecondary,
+      fontSize: 14,
+      fontFamily: 'Inter-Regular',
+    },
+    registerLink: {
+      color: theme.primary,
+      fontSize: 14,
+      fontWeight: '600',
+      fontFamily: 'Inter-Medium',
+    },
+  });
+
   return (
-    <ThemedView style={styles.container}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-        style={styles.keyboardAvoid}
-      >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.header}>
-            <ThemedText type="title" style={styles.title}>
-              Chào mừng trở lại! 👋
-            </ThemedText>
-            <ThemedText style={[styles.subtitle, { color: colors.textSecondary }]}>
-              Đăng nhập để tiếp tục thuê xe điện
-            </ThemedText>
-          </View>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView contentContainerStyle={styles.scrollView}>
+        <Animated.View entering={FadeInUp.delay(100)} style={styles.header}>
+          <Image
+            source={{ uri: 'https://images.pexels.com/photos/110844/pexels-photo-110844.jpeg?auto=compress&cs=tinysrgb&w=400' }}
+            style={styles.heroImage}
+            resizeMode="cover"
+          />
+          <Text style={styles.title}>EV Renter</Text>
+          <Text style={styles.subtitle}>
+            Thuê xe điện thông minh, di chuyển xanh, tương lai bền vững
+          </Text>
+        </Animated.View>
 
-          <View style={styles.form}>
-            <Input
-              label="Email"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Nhập email của bạn"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              leftIcon={<Mail size={20} color={colors.textSecondary} />}
-            />
-
-            <Input
-              label="Mật khẩu"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="Nhập mật khẩu"
-              secureTextEntry={!showPassword}
-              leftIcon={<Lock size={20} color={colors.textSecondary} />}
-              rightIcon={
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeButton}
-                  activeOpacity={0.7}
-                >
-                  {showPassword ? (
-                    <EyeOff size={20} color={'#000'} />
-                  ) : (
-                    <Eye size={20} color={'#000'} />
-                  )}
-                </TouchableOpacity>
-              }
-            />
-
-            <Link href="/(auth)/forgot-password" asChild>
-              <ThemedText style={[styles.forgotPassword, { color: colors.primary }]}>
-                Quên mật khẩu?
-              </ThemedText>
-            </Link>
-
-            <Button
-              title="Đăng nhập"
-              onPress={handleLogin}
-              loading={loading}
-              fullWidth
-              style={styles.loginButton}
-            />
-
-            <View style={styles.signupContainer}>
-              <ThemedText style={{ color: colors.textSecondary }}>
-                Chưa có tài khoản?{' '}
-              </ThemedText>
-              <Link href="/(auth)/register" asChild>
-                <ThemedText style={[styles.signupLink, { color: colors.primary }]}>
-                  Đăng ký ngay
-                </ThemedText>
-              </Link>
+        <Animated.View entering={FadeInDown.delay(200)} style={styles.formContainer}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Email</Text>
+            <View style={styles.inputContainer}>
+              <Mail size={20} color={theme.textSecondary} />
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Nhập email của bạn"
+                placeholderTextColor={theme.textSecondary}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
             </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </ThemedView>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Mật khẩu</Text>
+            <View style={styles.inputContainer}>
+              <Lock size={20} color={theme.textSecondary} />
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="Nhập mật khẩu"
+                placeholderTextColor={theme.textSecondary}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity
+                style={styles.eyeButton}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? (
+                  <EyeOff size={20} color={theme.textSecondary} />
+                ) : (
+                  <Eye size={20} color={theme.textSecondary} />
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <TouchableOpacity style={styles.forgotPassword}>
+            <Link href="/(auth)/forgot-password" asChild>
+              <Text style={styles.forgotText}>Quên mật khẩu?</Text>
+            </Link>
+          </TouchableOpacity>
+
+          <AnimatedTouchableOpacity
+            style={styles.loginButton}
+            onPress={handleLogin}
+            disabled={isLoading}
+            entering={FadeInDown.delay(300)}
+          >
+            <Text style={styles.loginText}>
+              {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+            </Text>
+          </AnimatedTouchableOpacity>
+
+          <View style={styles.registerContainer}>
+            <Text style={styles.registerText}>Chưa có tài khoản? </Text>
+            <Link href="/(auth)/register" asChild>
+              <TouchableOpacity>
+                <Text style={styles.registerLink}>Đăng ký ngay</Text>
+              </TouchableOpacity>
+            </Link>
+          </View>
+        </Animated.View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  keyboardAvoid: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  title: {
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  form: {
-    width: '100%',
-  },
-  eyeButton: {
-    padding: 0,
-    backgroundColor: 'transparent',
-    borderWidth: 0,
-  },
-  forgotPassword: {
-    textAlign: 'right',
-    fontSize: 14,
-    marginBottom: 24,
-  },
-  loginButton: {
-    marginBottom: 24,
-  },
-  signupContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  signupLink: {
-    fontWeight: '600',
-  },
-});
