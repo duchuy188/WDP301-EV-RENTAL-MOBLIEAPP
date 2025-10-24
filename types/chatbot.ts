@@ -10,10 +10,16 @@ export interface ChatMessage {
 }
 
 export interface ChatbotAPIResponse {
-  success: boolean;
+  success?: boolean;
   data?: {
-    session_id: string;
+    success?: boolean;
+    session_id?: string;
+    message?: string;
     response?: string;
+    conversation_id?: string;
+    context?: string;
+    suggestions?: string[];
+    actions?: string[];
     messages?: ChatMessage[];
     conversations?: any[];
   };
@@ -21,10 +27,18 @@ export interface ChatbotAPIResponse {
 }
 
 export interface ChatHistoryResponse {
-  success: boolean;
+  success?: boolean;
   data?: {
-    session_id: string;
-    messages: ChatMessage[];
+    success?: boolean;
+    data?: {
+      session_id?: string;
+      messages?: ChatMessage[];
+      total_messages?: number;
+      last_activity?: string;
+      user_role?: string;
+    };
+    session_id?: string;
+    messages?: ChatMessage[];
   };
   message?: string;
 }

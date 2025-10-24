@@ -15,14 +15,11 @@ import {
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react-native';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useAuthStore } from '@/store/authStore';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 
 WebBrowser.maybeCompleteAuthSession();
-
-const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function LoginScreen() {
   const colorScheme = useColorScheme();
@@ -307,7 +304,7 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scrollView}>
-        <Animated.View entering={FadeInUp.delay(100)} style={styles.header}>
+        <View style={styles.header}>
           <Image
             source={{ uri: 'https://images.pexels.com/photos/110844/pexels-photo-110844.jpeg?auto=compress&cs=tinysrgb&w=400' }}
             style={styles.heroImage}
@@ -317,9 +314,9 @@ export default function LoginScreen() {
           <Text style={styles.subtitle}>
             Thuê xe điện thông minh, di chuyển xanh, tương lai bền vững
           </Text>
-        </Animated.View>
+        </View>
 
-        <Animated.View entering={FadeInDown.delay(200)} style={styles.formContainer}>
+        <View style={styles.formContainer}>
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Email</Text>
             <View style={styles.inputContainer}>
@@ -367,30 +364,28 @@ export default function LoginScreen() {
             </Link>
           </TouchableOpacity>
 
-          <AnimatedTouchableOpacity
+          <TouchableOpacity
             style={styles.loginButton}
             onPress={handleLogin}
             disabled={isLoading}
-            entering={FadeInDown.delay(300)}
           >
             <Text style={styles.loginText}>
               {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </Text>
-          </AnimatedTouchableOpacity>
+          </TouchableOpacity>
 
           {/* Divider */}
-          <Animated.View entering={FadeInDown.delay(400)} style={styles.dividerContainer}>
+          <View style={styles.dividerContainer}>
             <View style={styles.divider} />
             <Text style={styles.dividerText}>Hoặc</Text>
             <View style={styles.divider} />
-          </Animated.View>
+          </View>
 
           {/* Google Sign-In Button */}
-          <AnimatedTouchableOpacity
+          <TouchableOpacity
             style={styles.googleButton}
             onPress={handleGoogleSignIn}
             disabled={isGoogleLoading || !request}
-            entering={FadeInDown.delay(500)}
           >
             {isGoogleLoading ? (
               <ActivityIndicator color={theme.primary} />
@@ -403,7 +398,7 @@ export default function LoginScreen() {
                 <Text style={styles.googleButtonText}>Đăng nhập bằng Google</Text>
               </>
             )}
-          </AnimatedTouchableOpacity>
+          </TouchableOpacity>
 
           <View style={styles.registerContainer}>
             <Text style={styles.registerText}>Chưa có tài khoản? </Text>
@@ -413,7 +408,7 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </Link>
           </View>
-        </Animated.View>
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );

@@ -68,17 +68,28 @@ apiClient.interceptors.response.use(
     return response;
   },
   async (error: any) => {
+    const status = error.response?.status;
+    const url = error.config?.url;
+    
     // DEBUG: Log error in development
     if (__DEV__) {
-      console.error('❌ API Error:', {
-        status: error.response?.status,
-        url: error.config?.url,
-        message: error.response?.data?.message || error.message,
-        data: error.response?.data,
-      });
+      // 404 không phải là lỗi nghiêm trọng trong một số trường hợp (chatbot history, etc.)
+      if (status === 404) {
+        console.log('ℹ️  API Not Found (404):', {
+          url,
+          message: error.response?.data?.message || 'Resource not found',
+        });
+      } else {
+        console.error('❌ API Error:', {
+          status,
+          url,
+          message: error.response?.data?.message || error.message,
+          data: error.response?.data,
+        });
+      }
     }
 
-    if (error.response?.status === 401) {
+    if (status === 401) {
       // Token expired or invalid - clear local auth data
       try {
         await AsyncStorage.removeItem('token');
