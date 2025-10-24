@@ -2,11 +2,9 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 
-// API base URL - thay đổi URL này theo backend của bạn
-// Sử dụng 10.0.2.2 cho Android Emulator (thay vì localhost)
-// Sử dụng localhost cho iOS Simulator
-// Sử dụng IP máy thật cho Physical Device
-export const API_BASE_URL = 'http://10.0.2.2:5000/api';
+
+// export const API_BASE_URL = 'http://10.0.2.2:5000/api';
+export const API_BASE_URL = 'http://192.168.102.8:5000/api';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

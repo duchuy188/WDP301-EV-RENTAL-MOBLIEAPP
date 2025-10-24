@@ -490,7 +490,7 @@ export default function EditProfileScreen() {
 
             {/* Document Verification Section */}
             <Animated.View entering={FadeInDown.delay(300)} style={styles.section}>
-              <Text style={styles.sectionTitle}>Xác thực tài liệu</Text>
+              <Text style={styles.sectionTitle}>Xác thực kyc</Text>
 
               {/* CCCD Card */}
               <View style={[styles.documentCard, cccdUploaded && styles.documentCardUploaded]}>

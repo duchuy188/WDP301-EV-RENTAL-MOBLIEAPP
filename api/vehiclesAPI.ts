@@ -1,12 +1,12 @@
 
 
-import { VehiclesResponse, Vehicle } from '@/types/vehicles';
+import { VehiclesResponse, Vehicle, VehicleFilterParams } from '@/types/vehicles';
 import apiClient from './config';
 
 
 export const vehiclesAPI = {
-  getVehicles: async (): Promise<VehiclesResponse> => {
-    const response = await apiClient.get<VehiclesResponse>('/vehicles');
+  getVehicles: async (params?: VehicleFilterParams): Promise<VehiclesResponse> => {
+    const response = await apiClient.get<VehiclesResponse>('/vehicles', { params });
     return response.data;
   },
   getVehicleById: async (id: string): Promise<Vehicle> => {

@@ -127,12 +127,18 @@ export default function ProfileScreen() {
         },
         {
           id: 2,
+          title: 'Xác thực kyc',
+          icon: <FileText size={20} color={colors.textSecondary} />,
+          onPress: () => router.push('/verify-documents'),
+        },
+        {
+          id: 3,
           title: 'Phương thức thanh toán',
           icon: <CreditCard size={20} color={colors.textSecondary} />,
           onPress: () => Alert.alert('Thanh toán', 'Tính năng đang phát triển'),
         },
         {
-          id: 3,
+          id: 4,
           title: 'Địa chỉ đã lưu',
           icon: <MapPin size={20} color={colors.textSecondary} />,
           onPress: () => Alert.alert('Địa chỉ', 'Tính năng đang phát triển'),
@@ -143,21 +149,21 @@ export default function ProfileScreen() {
       title: 'Ưu đãi & Điểm thưởng',
       items: [
         {
-          id: 4,
+          id: 5,
           title: 'Điểm thưởng của tôi',
           icon: <Gift size={20} color={colors.textSecondary} />,
           badge: `${userStats.points} điểm`,
           onPress: () => Alert.alert('Điểm thưởng', `Bạn có ${userStats.points} điểm thưởng`),
         },
         {
-          id: 5,
+          id: 6,
           title: 'Mã giảm giá',
           icon: <Trophy size={20} color={colors.textSecondary} />,
           badge: '3 mã',
           onPress: () => Alert.alert('Mã giảm giá', 'Bạn có 3 mã giảm giá khả dụng'),
         },
         {
-          id: 6,
+          id: 7,
           title: 'Chương trình giới thiệu',
           icon: <Share2 size={20} color={colors.textSecondary} />,
           onPress: () => Alert.alert('Giới thiệu', 'Mời bạn bè và nhận thưởng!'),
@@ -168,25 +174,25 @@ export default function ProfileScreen() {
       title: 'Hỗ trợ',
       items: [
         {
-          id: 7,
+          id: 8,
           title: 'Trung tâm trợ giúp',
           icon: <HelpCircle size={20} color={colors.textSecondary} />,
           onPress: () => Alert.alert('Trợ giúp', 'Liên hệ: support@evrenter.com'),
         },
         {
-          id: 8,
+          id: 9,
           title: 'Điều khoản sử dụng',
           icon: <FileText size={20} color={colors.textSecondary} />,
           onPress: () => Alert.alert('Điều khoản', 'Tính năng đang phát triển'),
         },
         {
-          id: 9,
+          id: 10,
           title: 'Chính sách bảo mật',
           icon: <Shield size={20} color={colors.textSecondary} />,
           onPress: () => Alert.alert('Bảo mật', 'Tính năng đang phát triển'),
         },
         {
-          id: 10,
+          id: 11,
           title: 'Đánh giá ứng dụng',
           icon: <Star size={20} color={colors.textSecondary} />,
           onPress: () => Alert.alert('Đánh giá', 'Cảm ơn bạn đã sử dụng ứng dụng!'),

@@ -1,187 +1,223 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authAPI } from '@/api/authAPI';
-import { profile } from '@/types/auth';
+import { authAPI } from '../api/authAPI';
+import type { AuthResponse, profile } from '@/types/auth';
 
 export interface User {
   id: string;
   name: string;
   email: string;
-  phone: string;
+  phone?: string;
   licenseNumber?: string;
   profileImage?: string;
-  role?: string;
-  address?: string;
-  isActive?: boolean;
 }
 
-export interface AuthState {
+interface AuthState {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  token: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (userData: RegisterData) => Promise<void>;
+  googleLogin: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuthState: () => Promise<void>;
-  loadProfile: () => Promise<void>;
-  setUser: (user: any) => Promise<void>;
-  setToken: (token: string) => Promise<void>;
 }
 
 interface RegisterData {
-  fullname: string;
+  name: string;
   email: string;
-  phone?: string;
   password: string;
+  // only fullname, email, password required
 }
 
-// Helper function to convert profile to User
-const profileToUser = (profile: profile): User => ({
-  id: profile.id,
-  name: profile.fullname,
-  email: profile.email,
-  phone: profile.phone || '',
-  profileImage: profile.avatar,
-  role: profile.role,
-  address: profile.address,
-  isActive: profile.isActive,
+const mapProfileToUser = (p: profile | any, emailFallback?: string): User => ({
+  id: p?.id ?? '',
+  name: p?.fullname ?? p?.name ?? '',
+  email: p?.email ?? emailFallback ?? '',
+  phone: p?.phone ?? '',
+  licenseNumber: p?.licenseNumber ?? '',
+  profileImage: p?.avatar ?? p?.profileImage ?? '',
 });
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isLoading: false,
   isAuthenticated: false,
-  token: null,
 
+  // Real login using API
   login: async (email: string, password: string) => {
     set({ isLoading: true });
     try {
-      // Call API login
-      const response = await authAPI.login({ email, password });
-      
-      // Lưu token vào AsyncStorage
-      const token = response.token || response.data?.token;
-      const userData = response.data?.user;
-      
-      if (token) {
-        await AsyncStorage.setItem('token', token);
-        set({ token });
+      const res: AuthResponse = await authAPI.login({ email, password });
+
+      // Normalize token/refreshToken
+  const token = (res as any)?.token ?? (res as any)?.data?.token;
+  const refreshToken = (res as any)?.refreshToken ?? (res as any)?.data?.refreshToken;
+
+      // Persist token FIRST (before calling any authenticated endpoints)
+      if (token) await AsyncStorage.setItem('token', token);
+      if (refreshToken) await AsyncStorage.setItem('refreshToken', refreshToken);
+
+      // Try to extract user profile from response
+      let profileData: profile | null = null;
+      if (res?.data && (res.data as any).user) {
+        profileData = (res.data as any).user;
+      } else if (res?.data && (res.data as any).id) {
+        profileData = res.data as any;
       }
-      
-      if (response.refreshToken) {
-        await AsyncStorage.setItem('refreshToken', response.refreshToken);
+
+      // If we still don't have profile, try fetching it from profile endpoint
+      if (!profileData && token) {
+        try {
+          const pRes = await authAPI.getProfile();
+          if (pRes && pRes.success) profileData = pRes.data;
+        } catch (e) {
+          // ignore
+        }
       }
-      
-      // Nếu có user data trong response, lưu luôn
-      if (userData) {
-        const user = profileToUser(userData);
-        await AsyncStorage.setItem('user', JSON.stringify(user));
-        set({ user, isAuthenticated: true, isLoading: false });
-      } else {
-        // Nếu không có, load profile sau
-        await get().loadProfile();
-      }
-    } catch (error: any) {
+
+      const user = mapProfileToUser(profileData ?? { email }, email);
+
+      // Persist user
+      await AsyncStorage.setItem('user', JSON.stringify(user));
+
+      set({ user, isAuthenticated: true, isLoading: false });
+    } catch (error) {
       set({ isLoading: false });
-      throw new Error(error.response?.data?.message || error.message || 'Đăng nhập thất bại');
+      throw error;
     }
   },
 
+  // Login with Google idToken (sent from client-side Google auth)
+  googleLogin: async (idToken: string) => {
+    set({ isLoading: true });
+    try {
+      const res: AuthResponse = await authAPI.googleLogin(idToken);
+
+      const token = (res as any)?.token ?? (res as any)?.data?.token;
+      const refreshToken = (res as any)?.refreshToken ?? (res as any)?.data?.refreshToken;
+
+      // Persist token FIRST (before calling any authenticated endpoints)
+      if (token) await AsyncStorage.setItem('token', token);
+      if (refreshToken) await AsyncStorage.setItem('refreshToken', refreshToken);
+
+      // Extract profile if provided
+      let profileData: profile | null = null;
+      if (res?.data && (res.data as any).user) {
+        profileData = (res.data as any).user;
+      } else if (res?.data && (res.data as any).id) {
+        profileData = res.data as any;
+      }
+
+      // If no profile returned, try to fetch profile from server (if token present)
+      if (!profileData && token) {
+        try {
+          const pRes = await authAPI.getProfile();
+          if (pRes && pRes.success) profileData = pRes.data;
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      const user = mapProfileToUser(profileData ?? { email: '' });
+
+      // Persist user
+      await AsyncStorage.setItem('user', JSON.stringify(user));
+
+      set({ user, isAuthenticated: true, isLoading: false });
+    } catch (error) {
+      set({ isLoading: false });
+      throw error;
+    }
+  },
+
+  // Register using backend API and persist tokens + user
   register: async (userData: RegisterData) => {
     set({ isLoading: true });
     try {
-      // Call API register - Backend chỉ tạo tài khoản, không trả token
-      const response = await authAPI.register(userData);
-      
-      if (__DEV__) {
-        console.log('[authStore] Register response:', response);
-      }
-      
-      // Đăng ký thành công - User cần đăng nhập riêng để lấy token
-      set({ isLoading: false });
-      
-      // Note: Backend không trả token khi đăng ký
-      // User sẽ cần đăng nhập sau khi đăng ký thành công
-    } catch (error: any) {
-      set({ isLoading: false });
-      throw new Error(error.response?.data?.message || error.message || 'Đăng ký thất bại');
-    }
-  },
+      // Map local RegisterData -> API RegisterRequest shape
+      const payload = {
+        email: userData.email,
+        password: userData.password,
+        fullname: userData.name,
+      };
 
-  loadProfile: async () => {
-    try {
-      const response = await authAPI.getProfile();
-      if (response.success && response.data) {
-        const user = profileToUser(response.data);
-        await AsyncStorage.setItem('user', JSON.stringify(user));
-        set({ user, isAuthenticated: true, isLoading: false });
+      const res: AuthResponse = await authAPI.register(payload as any);
+
+      const token = (res as any)?.token ?? (res as any)?.data?.token;
+      const refreshToken = (res as any)?.refreshToken ?? (res as any)?.data?.refreshToken;
+
+      // Persist token FIRST (before calling any authenticated endpoints)
+      if (token) await AsyncStorage.setItem('token', token);
+      if (refreshToken) await AsyncStorage.setItem('refreshToken', refreshToken);
+
+      // Extract profile if provided
+      let profileData: profile | null = null;
+      if (res?.data && (res.data as any).user) {
+        profileData = (res.data as any).user;
+      } else if (res?.data && (res.data as any).id) {
+        profileData = res.data as any;
       }
+
+      // If no profile in register response, try to fetch it
+      if (!profileData && token) {
+        try {
+          const pRes = await authAPI.getProfile();
+          if (pRes && pRes.success) profileData = pRes.data;
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      const user = mapProfileToUser(profileData ?? { email: userData.email }, userData.email);
+
+      // Persist user
+      await AsyncStorage.setItem('user', JSON.stringify(user));
+
+      set({ user, isAuthenticated: true, isLoading: false });
     } catch (error) {
-      console.error('Error loading profile:', error);
       set({ isLoading: false });
+      throw error;
     }
   },
 
   logout: async () => {
     try {
-      // Call API logout
-      await authAPI.logout();
-    } catch (error) {
-      console.warn('Logout API error:', error);
-    } finally {
-      // Clear local data
       await AsyncStorage.removeItem('user');
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('refreshToken');
-      set({ user: null, isAuthenticated: false, token: null });
+    } catch (e) {
+      // ignore
     }
+    set({ user: null, isAuthenticated: false });
   },
 
   checkAuthState: async () => {
     try {
       const token = await AsyncStorage.getItem('token');
       const userData = await AsyncStorage.getItem('user');
-      
-      if (token && userData) {
+      if (userData) {
         const user = JSON.parse(userData);
-        set({ user, isAuthenticated: true, token });
-        
-        // Optionally refresh profile from server
+        set({ user, isAuthenticated: true });
+        return;
+      }
+
+      if (token) {
+        // If token exists but no user cached, try to fetch profile
         try {
-          await get().loadProfile();
-        } catch (error) {
-          console.warn('Could not refresh profile:', error);
+          const pRes = await authAPI.getProfile();
+          if (pRes && pRes.success) {
+            const user = mapProfileToUser(pRes.data);
+            await AsyncStorage.setItem('user', JSON.stringify(user));
+            set({ user, isAuthenticated: true });
+            return;
+          }
+        } catch (e) {
+          // ignore and fallthrough
         }
       }
     } catch (error) {
       console.error('Error checking auth state:', error);
-    }
-  },
-
-  setUser: async (userData: any) => {
-    try {
-      const user: User = {
-        id: userData.uid || userData.id || '',
-        name: userData.name || userData.displayName || '',
-        email: userData.email || '',
-        phone: userData.phone || userData.phoneNumber || '',
-        profileImage: userData.profileImage || userData.photoURL || '',
-      };
-      
-      await AsyncStorage.setItem('user', JSON.stringify(user));
-      set({ user, isAuthenticated: true });
-    } catch (error) {
-      console.error('Error setting user:', error);
-    }
-  },
-
-  setToken: async (token: string) => {
-    try {
-      await AsyncStorage.setItem('token', token);
-      set({ token });
-    } catch (error) {
-      console.error('Error setting token:', error);
     }
   },
 }));

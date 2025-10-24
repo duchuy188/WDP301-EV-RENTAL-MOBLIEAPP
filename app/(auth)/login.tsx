@@ -10,16 +10,15 @@ import {
   useColorScheme,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
-  ActivityIndicator
+  ScrollView
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useAuthStore } from '@/store/authStore';
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
 
-WebBrowser.maybeCompleteAuthSession();
+const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function LoginScreen() {
   const colorScheme = useColorScheme();
@@ -27,68 +26,18 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  const { login, setUser, setToken } = useAuthStore();
+  const { login } = useAuthStore();
+  const { googleLogin } = useAuthStore();
 
-  // Configure Google Sign-In
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: '1001290868749-5vrllmdt5jfg3tfi5hq7t989fdeeikem.apps.googleusercontent.com',
-    androidClientId: '1001290868749-5vrllmdt5jfg3tfi5hq7t989fdeeikem.apps.googleusercontent.com',
-    iosClientId: '1001290868749-5vrllmdt5jfg3tfi5hq7t989fdeeikem.apps.googleusercontent.com',
-  });
+  // Replace these client IDs with your OAuth client IDs from Google Cloud Console.
+  // For Expo-managed apps, use the appropriate client id for web / iOS / Android.
+  const GOOGLE_EXPO_CLIENT_ID = process.env.GOOGLE_EXPO_CLIENT_ID || '<YOUR_EXPO_OAUTH_CLIENT_ID>'; // e.g. for expo web
+  const GOOGLE_IOS_CLIENT_ID = process.env.GOOGLE_IOS_CLIENT_ID || '<YOUR_IOS_CLIENT_ID>';
+  const GOOGLE_ANDROID_CLIENT_ID = process.env.GOOGLE_ANDROID_CLIENT_ID || '<YOUR_ANDROID_CLIENT_ID>';
 
-  // Xử lý response từ Google
-  useEffect(() => {
-    if (response?.type === 'success') {
-      handleGoogleSuccess(response.params);
-    } else if (response?.type === 'error') {
-      console.error('Google Error:', response.error);
-      Alert.alert('Lỗi', 'Đăng nhập Google thất bại. Vui lòng thử lại.');
-      setIsGoogleLoading(false);
-    } else if (response?.type === 'cancel') {
-      setIsGoogleLoading(false);
-    }
-  }, [response]);
-
-  const handleGoogleSuccess = async (params: any) => {
-    try {
-      // Lấy thông tin user từ Google
-      const userInfoResponse = await fetch(
-        'https://www.googleapis.com/userinfo/v2/me',
-        {
-          headers: { Authorization: `Bearer ${params.access_token}` },
-        }
-      );
-      
-      const userInfo = await userInfoResponse.json();
-      
-      // Lưu user vào store
-      const userData = {
-        uid: userInfo.id,
-        email: userInfo.email || '',
-        name: userInfo.name || 'User',
-        profileImage: userInfo.picture || '',
-        phone: '',
-      };
-
-      await setUser(userData);
-      await setToken(params.id_token || params.access_token);
-      
-      Alert.alert('Thành công', 'Đăng nhập bằng Google thành công!');
-      router.replace('/(tabs)');
-    } catch (error) {
-      console.error('Error getting user info:', error);
-      Alert.alert('Lỗi', 'Không thể lấy thông tin từ Google');
-    } finally {
-      setIsGoogleLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = () => {
-    setIsGoogleLoading(true);
-    promptAsync();
-  };
+  // Configure the discovery document for Google
+  const discovery = AuthSession.useAutoDiscovery('https://accounts.google.com');
 
   const colors = {
     light: {
@@ -123,13 +72,75 @@ export default function LoginScreen() {
     try {
       await login(email, password);
       router.replace('/(tabs)');
-    } catch (error: any) {
-      const errorMessage = error?.message || 'Email hoặc mật khẩu không đúng';
-      Alert.alert('Đăng nhập thất bại', errorMessage);
+    } catch (error) {
+      Alert.alert('Đăng nhập thất bại', 'Email hoặc mật khẩu không đúng');
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Google Sign-in using OAuth2 (ID token flow)
+  const handleGoogleSignIn = async () => {
+    try {
+      // build the request
+      const redirectUri = AuthSession.makeRedirectUri();
+
+      const clientId = GOOGLE_EXPO_CLIENT_ID;
+      if (!clientId || clientId.startsWith('<YOUR_')) {
+        Alert.alert('Cấu hình Google OAuth', 'Vui lòng cấu hình GOOGLE_EXPO_CLIENT_ID trong env hoặc thay các placeholder trong mã nguồn.');
+        return;
+      }
+
+      const scopes = ['openid', 'profile', 'email'];
+      if (!discovery) {
+        Alert.alert('Lỗi cấu hình', 'Không thể lấy thông tin discovery từ Google. Vui lòng thử lại sau.');
+        return;
+      }
+
+      const request = new AuthSession.AuthRequest({
+        clientId,
+        redirectUri,
+        scopes,
+        responseType: AuthSession.ResponseType.IdToken,
+        extraParams: {
+          nonce: Math.random().toString(36).substring(2, 15),
+          prompt: 'select_account',
+        },
+      });
+
+      await request.makeAuthUrlAsync(discovery);
+
+  const result = await request.promptAsync(discovery);
+
+      if (result.type === 'success') {
+        const idToken = (result as any).params?.id_token;
+        if (!idToken) {
+          Alert.alert('Đăng nhập Google thất bại', 'Không nhận được idToken từ Google');
+          return;
+        }
+
+        // Send idToken to backend to create/find user and receive our app token
+        setIsLoading(true);
+        try {
+          await googleLogin(idToken);
+          router.replace('/(tabs)');
+        } catch (e) {
+          Alert.alert('Lỗi', 'Đăng nhập bằng Google thất bại');
+        } finally {
+          setIsLoading(false);
+        }
+      } else if (result.type === 'dismiss' || result.type === 'cancel') {
+        // user cancelled
+      } else {
+        Alert.alert('Lỗi OAuth', 'Kết quả không hợp lệ: ' + JSON.stringify(result));
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Google sign-in error', error);
+      Alert.alert('Lỗi', 'Không thể đăng nhập với Google');
+    }
+  };
+
 
   const styles = StyleSheet.create({
     container: {
@@ -258,44 +269,6 @@ export default function LoginScreen() {
       fontWeight: '600',
       fontFamily: 'Inter-Medium',
     },
-    dividerContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginVertical: 24,
-    },
-    divider: {
-      flex: 1,
-      height: 1,
-      backgroundColor: theme.border,
-    },
-    dividerText: {
-      marginHorizontal: 16,
-      color: theme.textSecondary,
-      fontSize: 14,
-      fontFamily: 'Inter-Regular',
-    },
-    googleButton: {
-      backgroundColor: theme.surface,
-      borderRadius: 12,
-      height: 50,
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: theme.border,
-      flexDirection: 'row',
-      gap: 12,
-      marginBottom: 20,
-    },
-    googleButtonText: {
-      color: theme.text,
-      fontSize: 16,
-      fontWeight: '600',
-      fontFamily: 'Inter-Medium',
-    },
-    googleIcon: {
-      width: 20,
-      height: 20,
-    },
   });
 
   return (
@@ -304,7 +277,7 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scrollView}>
-        <View style={styles.header}>
+        <Animated.View entering={FadeInUp.delay(100)} style={styles.header}>
           <Image
             source={{ uri: 'https://images.pexels.com/photos/110844/pexels-photo-110844.jpeg?auto=compress&cs=tinysrgb&w=400' }}
             style={styles.heroImage}
@@ -314,9 +287,9 @@ export default function LoginScreen() {
           <Text style={styles.subtitle}>
             Thuê xe điện thông minh, di chuyển xanh, tương lai bền vững
           </Text>
-        </View>
+        </Animated.View>
 
-        <View style={styles.formContainer}>
+        <Animated.View entering={FadeInDown.delay(200)} style={styles.formContainer}>
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Email</Text>
             <View style={styles.inputContainer}>
@@ -364,41 +337,26 @@ export default function LoginScreen() {
             </Link>
           </TouchableOpacity>
 
-          <TouchableOpacity
+          <AnimatedTouchableOpacity
             style={styles.loginButton}
             onPress={handleLogin}
             disabled={isLoading}
+            entering={FadeInDown.delay(300)}
           >
             <Text style={styles.loginText}>
               {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </Text>
-          </TouchableOpacity>
+          </AnimatedTouchableOpacity>
 
-          {/* Divider */}
-          <View style={styles.dividerContainer}>
-            <View style={styles.divider} />
-            <Text style={styles.dividerText}>Hoặc</Text>
-            <View style={styles.divider} />
-          </View>
-
-          {/* Google Sign-In Button */}
-          <TouchableOpacity
-            style={styles.googleButton}
+          {/* Google sign-in button */}
+          <AnimatedTouchableOpacity
+            style={[styles.loginButton, { backgroundColor: '#DB4437', marginBottom: 12 }]}
             onPress={handleGoogleSignIn}
-            disabled={isGoogleLoading || !request}
+            disabled={isLoading}
+            entering={FadeInDown.delay(350)}
           >
-            {isGoogleLoading ? (
-              <ActivityIndicator color={theme.primary} />
-            ) : (
-              <>
-                <Image
-                  source={{ uri: 'https://img.icons8.com/color/48/google-logo.png' }}
-                  style={styles.googleIcon}
-                />
-                <Text style={styles.googleButtonText}>Đăng nhập bằng Google</Text>
-              </>
-            )}
-          </TouchableOpacity>
+            <Text style={styles.loginText}>{isLoading ? 'Đang xử lý...' : 'Đăng nhập với Google'}</Text>
+          </AnimatedTouchableOpacity>
 
           <View style={styles.registerContainer}>
             <Text style={styles.registerText}>Chưa có tài khoản? </Text>
@@ -408,7 +366,7 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </Link>
           </View>
-        </View>
+        </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
