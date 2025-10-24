@@ -10,10 +10,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image
 } from 'react-native';
 import { Link, router } from 'expo-router';
-import { User, Mail, Phone, Lock, Eye, EyeOff, Camera, CreditCard } from 'lucide-react-native';
+import { User, Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useAuthStore } from '@/store/authStore';
 
@@ -24,10 +23,8 @@ export default function RegisterScreen() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: '',
     password: '',
     confirmPassword: '',
-    licenseNumber: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -59,7 +56,7 @@ export default function RegisterScreen() {
   const theme = colors[colorScheme ?? 'light'];
 
   const handleRegister = async () => {
-    if (!formData.name || !formData.email || !formData.phone || !formData.password || !formData.licenseNumber) {
+    if (!formData.name || !formData.email || !formData.password) {
       Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin');
       return;
     }
@@ -69,17 +66,51 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (formData.password.length < 6) {
-      Alert.alert('Lỗi', 'Mật khẩu phải có ít nhất 6 ký tự');
+    // Validate password strength (match backend requirements)
+    if (formData.password.length < 8) {
+      Alert.alert('Lỗi', 'Mật khẩu phải có ít nhất 8 ký tự');
+      return;
+    }
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
+    if (!passwordRegex.test(formData.password)) {
+      Alert.alert(
+        'Mật khẩu không hợp lệ', 
+        'Mật khẩu phải bao gồm:\n• Chữ hoa (A-Z)\n• Chữ thường (a-z)\n• Số (0-9)\n• Ký tự đặc biệt (@$!%*?&)'
+      );
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      Alert.alert('Lỗi', 'Email không hợp lệ');
       return;
     }
 
     setIsLoading(true);
     try {
-      await register(formData);
-      router.replace('/(tabs)');
-    } catch (error) {
-      Alert.alert('Đăng ký thất bại', 'Có lỗi xảy ra, vui lòng thử lại');
+      // Gọi API đăng ký
+      await register({
+        fullname: formData.name,
+        email: formData.email,
+        password: formData.password,
+      });
+      
+      // Đăng ký thành công
+      Alert.alert(
+        'Đăng ký thành công!', 
+        'Tài khoản của bạn đã được tạo. Vui lòng đăng nhập để tiếp tục.', 
+        [
+          { 
+            text: 'Đăng nhập ngay', 
+            onPress: () => router.replace('/(auth)/login') 
+          }
+        ]
+      );
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Có lỗi xảy ra, vui lòng thử lại';
+      Alert.alert('Đăng ký thất bại', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -150,23 +181,10 @@ export default function RegisterScreen() {
     eyeButton: {
       padding: 4,
     },
-    uploadSection: {
-      marginBottom: 20,
-    },
-    uploadButton: {
-      borderWidth: 2,
-      borderColor: theme.border,
-      borderStyle: 'dashed',
-      borderRadius: 12,
-      padding: 20,
-      alignItems: 'center',
-      marginTop: 8,
-    },
-    uploadText: {
+    passwordHint: {
+      fontSize: 12,
       color: theme.textSecondary,
-      fontSize: 14,
-      marginTop: 8,
-      textAlign: 'center',
+      marginTop: 4,
       fontFamily: 'Inter-Regular',
     },
     registerButton: {
@@ -252,35 +270,6 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Số điện thoại</Text>
-            <View style={styles.inputContainer}>
-              <Phone size={20} color={theme.textSecondary} />
-              <TextInput
-                style={styles.input}
-                value={formData.phone}
-                onChangeText={(text) => setFormData({ ...formData, phone: text })}
-                placeholder="Nhập số điện thoại"
-                placeholderTextColor={theme.textSecondary}
-                keyboardType="phone-pad"
-              />
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Số giấy phép lái xe</Text>
-            <View style={styles.inputContainer}>
-              <CreditCard size={20} color={theme.textSecondary} />
-              <TextInput
-                style={styles.input}
-                value={formData.licenseNumber}
-                onChangeText={(text) => setFormData({ ...formData, licenseNumber: text })}
-                placeholder="Nhập số giấy phép lái xe"
-                placeholderTextColor={theme.textSecondary}
-              />
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Mật khẩu</Text>
             <View style={styles.inputContainer}>
               <Lock size={20} color={theme.textSecondary} />
@@ -303,6 +292,9 @@ export default function RegisterScreen() {
                 )}
               </TouchableOpacity>
             </View>
+            <Text style={styles.passwordHint}>
+              Ít nhất 8 ký tự: chữ hoa, chữ thường, số và ký tự đặc biệt
+            </Text>
           </View>
 
           <View style={styles.inputGroup}>
@@ -328,16 +320,6 @@ export default function RegisterScreen() {
                 )}
               </TouchableOpacity>
             </View>
-          </View>
-
-          <View style={styles.uploadSection}>
-            <Text style={styles.inputLabel}>Giấy phép lái xe & CCCD</Text>
-            <TouchableOpacity style={styles.uploadButton}>
-              <Camera size={24} color={theme.textSecondary} />
-              <Text style={styles.uploadText}>
-                Chụp ảnh giấy phép lái xe và CCCD{'\n'}(Chỉ cần demo UI)
-              </Text>
-            </TouchableOpacity>
           </View>
 
           <AnimatedTouchableOpacity

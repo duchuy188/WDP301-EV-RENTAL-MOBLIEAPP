@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,23 +10,88 @@ import {
   useColorScheme,
   KeyboardAvoidingView,
   Platform,
-  ScrollView
+  ScrollView,
+  ActivityIndicator
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useAuthStore } from '@/store/authStore';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+
+WebBrowser.maybeCompleteAuthSession();
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
 export default function LoginScreen() {
   const colorScheme = useColorScheme();
-  const [email, setEmail] = useState('demo@evrent.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  const { login } = useAuthStore();
+  const { login, setUser, setToken } = useAuthStore();
+
+  // Configure Google Sign-In
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+    clientId: '1001290868749-5vrllmdt5jfg3tfi5hq7t989fdeeikem.apps.googleusercontent.com',
+    androidClientId: '1001290868749-5vrllmdt5jfg3tfi5hq7t989fdeeikem.apps.googleusercontent.com',
+    iosClientId: '1001290868749-5vrllmdt5jfg3tfi5hq7t989fdeeikem.apps.googleusercontent.com',
+  });
+
+  // Xử lý response từ Google
+  useEffect(() => {
+    if (response?.type === 'success') {
+      handleGoogleSuccess(response.params);
+    } else if (response?.type === 'error') {
+      console.error('Google Error:', response.error);
+      Alert.alert('Lỗi', 'Đăng nhập Google thất bại. Vui lòng thử lại.');
+      setIsGoogleLoading(false);
+    } else if (response?.type === 'cancel') {
+      setIsGoogleLoading(false);
+    }
+  }, [response]);
+
+  const handleGoogleSuccess = async (params: any) => {
+    try {
+      // Lấy thông tin user từ Google
+      const userInfoResponse = await fetch(
+        'https://www.googleapis.com/userinfo/v2/me',
+        {
+          headers: { Authorization: `Bearer ${params.access_token}` },
+        }
+      );
+      
+      const userInfo = await userInfoResponse.json();
+      
+      // Lưu user vào store
+      const userData = {
+        uid: userInfo.id,
+        email: userInfo.email || '',
+        name: userInfo.name || 'User',
+        profileImage: userInfo.picture || '',
+        phone: '',
+      };
+
+      await setUser(userData);
+      await setToken(params.id_token || params.access_token);
+      
+      Alert.alert('Thành công', 'Đăng nhập bằng Google thành công!');
+      router.replace('/(tabs)');
+    } catch (error) {
+      console.error('Error getting user info:', error);
+      Alert.alert('Lỗi', 'Không thể lấy thông tin từ Google');
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = () => {
+    setIsGoogleLoading(true);
+    promptAsync();
+  };
 
   const colors = {
     light: {
@@ -61,8 +126,9 @@ export default function LoginScreen() {
     try {
       await login(email, password);
       router.replace('/(tabs)');
-    } catch (error) {
-      Alert.alert('Đăng nhập thất bại', 'Email hoặc mật khẩu không đúng');
+    } catch (error: any) {
+      const errorMessage = error?.message || 'Email hoặc mật khẩu không đúng';
+      Alert.alert('Đăng nhập thất bại', errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -195,6 +261,44 @@ export default function LoginScreen() {
       fontWeight: '600',
       fontFamily: 'Inter-Medium',
     },
+    dividerContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginVertical: 24,
+    },
+    divider: {
+      flex: 1,
+      height: 1,
+      backgroundColor: theme.border,
+    },
+    dividerText: {
+      marginHorizontal: 16,
+      color: theme.textSecondary,
+      fontSize: 14,
+      fontFamily: 'Inter-Regular',
+    },
+    googleButton: {
+      backgroundColor: theme.surface,
+      borderRadius: 12,
+      height: 50,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.border,
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 20,
+    },
+    googleButtonText: {
+      color: theme.text,
+      fontSize: 16,
+      fontWeight: '600',
+      fontFamily: 'Inter-Medium',
+    },
+    googleIcon: {
+      width: 20,
+      height: 20,
+    },
   });
 
   return (
@@ -272,6 +376,33 @@ export default function LoginScreen() {
             <Text style={styles.loginText}>
               {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </Text>
+          </AnimatedTouchableOpacity>
+
+          {/* Divider */}
+          <Animated.View entering={FadeInDown.delay(400)} style={styles.dividerContainer}>
+            <View style={styles.divider} />
+            <Text style={styles.dividerText}>Hoặc</Text>
+            <View style={styles.divider} />
+          </Animated.View>
+
+          {/* Google Sign-In Button */}
+          <AnimatedTouchableOpacity
+            style={styles.googleButton}
+            onPress={handleGoogleSignIn}
+            disabled={isGoogleLoading || !request}
+            entering={FadeInDown.delay(500)}
+          >
+            {isGoogleLoading ? (
+              <ActivityIndicator color={theme.primary} />
+            ) : (
+              <>
+                <Image
+                  source={{ uri: 'https://img.icons8.com/color/48/google-logo.png' }}
+                  style={styles.googleIcon}
+                />
+                <Text style={styles.googleButtonText}>Đăng nhập bằng Google</Text>
+              </>
+            )}
           </AnimatedTouchableOpacity>
 
           <View style={styles.registerContainer}>
