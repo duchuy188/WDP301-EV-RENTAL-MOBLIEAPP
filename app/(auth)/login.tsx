@@ -26,6 +26,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const { login } = useAuthStore();
   const { googleLogin } = useAuthStore();
@@ -120,14 +121,14 @@ export default function LoginScreen() {
         }
 
         // Send idToken to backend to create/find user and receive our app token
-        setIsLoading(true);
+        setIsGoogleLoading(true);
         try {
           await googleLogin(idToken);
           router.replace('/(tabs)');
         } catch (e) {
           Alert.alert('Lỗi', 'Đăng nhập bằng Google thất bại');
         } finally {
-          setIsLoading(false);
+          setIsGoogleLoading(false);
         }
       } else if (result.type === 'dismiss' || result.type === 'cancel') {
         // user cancelled
@@ -352,10 +353,10 @@ export default function LoginScreen() {
           <AnimatedTouchableOpacity
             style={[styles.loginButton, { backgroundColor: '#DB4437', marginBottom: 12 }]}
             onPress={handleGoogleSignIn}
-            disabled={isLoading}
+            disabled={isGoogleLoading}
             entering={FadeInDown.delay(350)}
           >
-            <Text style={styles.loginText}>{isLoading ? 'Đang xử lý...' : 'Đăng nhập với Google'}</Text>
+            <Text style={styles.loginText}>{isGoogleLoading ? 'Đang xử lý...' : 'Đăng nhập với Google'}</Text>
           </AnimatedTouchableOpacity>
 
           <View style={styles.registerContainer}>

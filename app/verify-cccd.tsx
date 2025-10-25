@@ -39,6 +39,7 @@ export default function VerifyCCCDScreen() {
   const [issueDate, setIssueDate] = useState('');
   const [issuePlace, setIssuePlace] = useState('');
   const [features, setFeatures] = useState('');
+  const [doe, setDoe] = useState('');
   const [kycStatus, setKycStatus] = useState<string>('');
   
   // Modal states
@@ -93,6 +94,7 @@ export default function VerifyCCCDScreen() {
         if (card.issueDate) setIssueDate(card.issueDate);
         if (card.issueLocation) setIssuePlace(card.issueLocation);
         if (card.features) setFeatures(card.features);
+        if (card.doe) setDoe(card.doe);
         
         console.log('✅ Đã load CCCD - Name:', card.name, 'Images:', !!card.frontImage, !!card.backImage);
       } else {
@@ -661,6 +663,18 @@ export default function VerifyCCCDScreen() {
             placeholderTextColor={colors.textSecondary}
             value={issueDate}
             onChangeText={setIssueDate}
+            editable={false}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Ngày hết hạn</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="dd/mm/yyyy"
+            placeholderTextColor={colors.textSecondary}
+            value={doe}
+            onChangeText={setDoe}
             editable={false}
           />
         </View>

@@ -16,39 +16,56 @@ export interface Station {
     sample_vehicle_id: string;
   }
   
-  export interface AvailableColor {
-    sample_vehicle_id: string;
-    sample_images?: string[];
-    images?: string[];
-    price_per_day: number;
-    deposit_percentage: number;
-    color: string;
-    available_quantity: number;
-    image?: string; // For backward compatibility
-  }
-  
-  // Interface for individual vehicle detail
-  export interface Vehicle {
+export interface AvailableColor {
+  sample_vehicle_id: string;
+  sample_images?: string[];
+  images?: string[];
+  price_per_day: number;
+  deposit_percentage?: number;
+  color: string;
+  available_quantity: number;
+  image?: string; // For backward compatibility
+  stations?: Array<{
     _id: string;
-    brand: string;
-    model: string;
-    year: number;
-    type: string;
+    name: string;
+    address: string;
+  }>;
+}
+  
+// Interface for individual vehicle detail
+export interface Vehicle {
+  _id: string;
+  brand: string;
+  model: string;
+  year: number;
+  type: string;
+  color?: string;
+  battery_capacity: number;
+  max_range: number;
+  max_speed?: number; // km/h
+  power?: number; // Watts
+  price_per_day?: number;
+  deposit_percentage?: number;
+  images?: string[];
+  station?: Station; // Single station (fallback)
+  stations?: Station[]; // Multiple stations (new format)
+  available_colors?: AvailableColor[];
+  color_images?: ColorImage[];
+  createdAt?: string;
+  updatedAt?: string;
+  // Additional properties from detailed API response
+  selected_color?: string;
+  current_color_info?: {
     color: string;
-    battery_capacity: number;
-    max_range: number;
-    max_speed?: number; // km/h
-    power: number; // Watts
-    price_per_day: number;
-    deposit_percentage: number;
     images: string[];
-    station?: Station; // Single station (fallback)
-    stations?: Station[]; // Multiple stations (new format)
-    available_colors: AvailableColor[];
-    color_images?: ColorImage[];
-    createdAt: string;
-    updatedAt: string;
-  }
+    price_per_day: number;
+    station: Station;
+  };
+  current_battery?: number;
+  technical_status?: string;
+  total_colors?: number;
+  total_available?: number;
+}
   
   // Interface for vehicles list (FindCar API response)
   export interface VehicleListItem {

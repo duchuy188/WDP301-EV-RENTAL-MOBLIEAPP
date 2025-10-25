@@ -1,5 +1,5 @@
 import apiClient from './config';
-import { StationsResponse } from '../types/station';
+import { StationsResponse, StationResponse } from '../types/station';
 
 
 export const stationAPI = {
@@ -16,8 +16,8 @@ export const stationAPI = {
     const response = await apiClient.get('/stations', { params });
     return response.data as StationsResponse;
   },
-  getStationById: async (id: string): Promise<StationsResponse> => {
+  getStationById: async (id: string): Promise<StationResponse> => {
     const response = await apiClient.get(`/stations/${id}`);
-    return response.data as StationsResponse;
+    return response.data as StationResponse;
   }
 };

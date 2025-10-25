@@ -18,8 +18,6 @@ import {
   MapPin,
   Camera,
   Save,
-  Upload,
-  CheckCircle,
   ArrowLeft,
 } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -39,12 +37,8 @@ export default function EditProfileScreen() {
     phone: user?.phone || '',
     address: user?.address || '',
     avatar: user?.profileImage || '',
-    cccdImage: '',
-    licenseImage: '',
   });
   const [isUpdating, setIsUpdating] = useState(false);
-  const [cccdUploaded, setCccdUploaded] = useState(false);
-  const [licenseUploaded, setLicenseUploaded] = useState(false);
 
   const handleSaveProfile = async () => {
     if (!editForm.name.trim()) {
@@ -163,33 +157,6 @@ export default function EditProfileScreen() {
     ]);
   };
 
-  const handleUploadCCCD = () => {
-    Alert.alert('Chụp ảnh CCCD', 'Vui lòng chụp rõ 2 mặt của CCCD', [
-      { text: 'Hủy', style: 'cancel' },
-      { text: 'Chụp ảnh', onPress: () => mockUploadDocument('cccd') },
-    ]);
-  };
-
-  const handleUploadLicense = () => {
-    Alert.alert('Chụp ảnh GPLX', 'Vui lòng chụp rõ 2 mặt của Giấy phép lái xe', [
-      { text: 'Hủy', style: 'cancel' },
-      { text: 'Chụp ảnh', onPress: () => mockUploadDocument('license') },
-    ]);
-  };
-
-  const mockUploadDocument = (type: string) => {
-    setTimeout(() => {
-      if (type === 'cccd') {
-        setCccdUploaded(true);
-        setEditForm((prev) => ({ ...prev, cccdImage: 'mock-cccd-url' }));
-      } else if (type === 'license') {
-        setLicenseUploaded(true);
-        setEditForm((prev) => ({ ...prev, licenseImage: 'mock-license-url' }));
-      }
-      Alert.alert('Thành công', 'Tài liệu đã được tải lên và đang chờ xác thực!');
-    }, 1500);
-  };
-
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -296,71 +263,6 @@ export default function EditProfileScreen() {
       color: colors.text,
       marginLeft: 12,
       fontFamily: 'Inter-Regular',
-    },
-    documentCard: {
-      backgroundColor: colors.background,
-      borderRadius: 12,
-      padding: 16,
-      marginBottom: 16,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    documentCardUploaded: {
-      borderColor: colors.success,
-      backgroundColor: colors.success + '10',
-    },
-    documentHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 8,
-    },
-    documentName: {
-      fontSize: 15,
-      fontWeight: '600',
-      color: colors.text,
-      fontFamily: 'Inter-Medium',
-      flex: 1,
-    },
-    documentStatus: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-    },
-    statusText: {
-      fontSize: 12,
-      fontWeight: '600',
-      fontFamily: 'Inter-Medium',
-    },
-    statusUploaded: {
-      color: colors.success,
-    },
-    statusPending: {
-      color: colors.textSecondary,
-    },
-    documentDesc: {
-      fontSize: 13,
-      color: colors.textSecondary,
-      marginBottom: 12,
-      fontFamily: 'Inter-Regular',
-    },
-    uploadButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.primary,
-      paddingVertical: 10,
-      borderRadius: 8,
-      gap: 8,
-    },
-    uploadButtonUploaded: {
-      backgroundColor: colors.success,
-    },
-    uploadButtonText: {
-      color: '#FFFFFF',
-      fontSize: 14,
-      fontWeight: '600',
-      fontFamily: 'Inter-Medium',
     },
     saveButtonContainer: {
       padding: 20,
@@ -485,85 +387,6 @@ export default function EditProfileScreen() {
                     editable={false}
                   />
                 </View>
-              </View>
-            </Animated.View>
-
-            {/* Document Verification Section */}
-            <Animated.View entering={FadeInDown.delay(300)} style={styles.section}>
-              <Text style={styles.sectionTitle}>Xác thực kyc</Text>
-
-              {/* CCCD Card */}
-              <View style={[styles.documentCard, cccdUploaded && styles.documentCardUploaded]}>
-                <View style={styles.documentHeader}>
-                  <Text style={styles.documentName}>Căn cước công dân</Text>
-                  <View style={styles.documentStatus}>
-                    {cccdUploaded ? (
-                      <CheckCircle size={16} color={colors.success} />
-                    ) : (
-                      <Upload size={16} color={colors.textSecondary} />
-                    )}
-                    <Text
-                      style={[
-                        styles.statusText,
-                        cccdUploaded ? styles.statusUploaded : styles.statusPending,
-                      ]}
-                    >
-                      {cccdUploaded ? 'Đã tải lên' : 'Chưa tải lên'}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.documentDesc}>
-                  Chụp rõ 2 mặt của CCCD để xác thực danh tính
-                </Text>
-                <TouchableOpacity
-                  style={[styles.uploadButton, cccdUploaded && styles.uploadButtonUploaded]}
-                  onPress={handleUploadCCCD}
-                >
-                  <Camera size={16} color="#FFFFFF" />
-                  <Text style={styles.uploadButtonText}>
-                    {cccdUploaded ? 'Tải lên lại' : 'Chụp ảnh CCCD'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* License Card */}
-              <View
-                style={[
-                  styles.documentCard,
-                  licenseUploaded && styles.documentCardUploaded,
-                  { marginBottom: 0 },
-                ]}
-              >
-                <View style={styles.documentHeader}>
-                  <Text style={styles.documentName}>Giấy phép lái xe</Text>
-                  <View style={styles.documentStatus}>
-                    {licenseUploaded ? (
-                      <CheckCircle size={16} color={colors.success} />
-                    ) : (
-                      <Upload size={16} color={colors.textSecondary} />
-                    )}
-                    <Text
-                      style={[
-                        styles.statusText,
-                        licenseUploaded ? styles.statusUploaded : styles.statusPending,
-                      ]}
-                    >
-                      {licenseUploaded ? 'Đã tải lên' : 'Chưa tải lên'}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.documentDesc}>
-                  Chụp rõ 2 mặt của GPLX để xác thực quyền lái xe
-                </Text>
-                <TouchableOpacity
-                  style={[styles.uploadButton, licenseUploaded && styles.uploadButtonUploaded]}
-                  onPress={handleUploadLicense}
-                >
-                  <Camera size={16} color="#FFFFFF" />
-                  <Text style={styles.uploadButtonText}>
-                    {licenseUploaded ? 'Tải lên lại' : 'Chụp ảnh GPLX'}
-                  </Text>
-                </TouchableOpacity>
               </View>
             </Animated.View>
           </View>

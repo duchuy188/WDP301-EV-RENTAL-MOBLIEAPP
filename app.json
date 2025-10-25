@@ -12,15 +12,27 @@
             "supportsTablet": true,
             "infoPlist": {
                 "NSCameraUsageDescription": "Ứng dụng cần truy cập camera để chụp ảnh đại diện và tài liệu xác thực.",
-                "NSPhotoLibraryUsageDescription": "Ứng dụng cần truy cập thư viện ảnh để chọn ảnh đại diện."
+                "NSPhotoLibraryUsageDescription": "Ứng dụng cần truy cập thư viện ảnh để chọn ảnh đại diện.",
+                "NSLocationWhenInUseUsageDescription": "Ứng dụng cần truy cập vị trí của bạn để tìm trạm xe gần nhất.",
+                "NSLocationAlwaysAndWhenInUseUsageDescription": "Ứng dụng cần truy cập vị trí của bạn để tìm trạm xe gần nhất."
+            },
+            "config": {
+                "googleMapsApiKey": "YOUR_IOS_GOOGLE_MAPS_API_KEY"
             }
         },
         "android": {
             "permissions": [
                 "CAMERA",
                 "READ_EXTERNAL_STORAGE",
-                "WRITE_EXTERNAL_STORAGE"
-            ]
+                "WRITE_EXTERNAL_STORAGE",
+                "ACCESS_FINE_LOCATION",
+                "ACCESS_COARSE_LOCATION"
+            ],
+            "config": {
+                "googleMaps": {
+                    "apiKey": "YOUR_ANDROID_GOOGLE_MAPS_API_KEY"
+                }
+            }
         },
         "web": {
             "bundler": "metro",
@@ -35,6 +47,13 @@
                 {
                     "photosPermission": "Ứng dụng cần truy cập thư viện ảnh để chọn ảnh đại diện.",
                     "cameraPermission": "Ứng dụng cần truy cập camera để chụp ảnh đại diện và tài liệu xác thực."
+                }
+            ],
+            [
+                "expo-location",
+                {
+                    "locationAlwaysAndWhenInUsePermission": "Ứng dụng cần truy cập vị trí của bạn để tìm trạm xe gần nhất.",
+                    "locationWhenInUsePermission": "Ứng dụng cần truy cập vị trí của bạn để tìm trạm xe gần nhất."
                 }
             ]
         ],

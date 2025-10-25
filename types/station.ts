@@ -18,15 +18,25 @@ export interface Station {
     rented_vehicles?: number;
     maintenance_vehicles?: number;
     reserved_vehicles?: number;
+    latitude?: number;
+    longitude?: number;
     createdAt?: string;
     updatedAt?: string;
     __v?: number;
   }
   
-  export interface StationsResponse {
-    stations: Station[];
-    page?: number;
-    limit?: number;
-    total?: number;
+  export interface StationWithDistance extends Station {
+    distance?: number; // khoảng cách tính bằng km
   }
+  
+export interface StationsResponse {
+  stations: Station[];
+  page?: number;
+  limit?: number;
+  total?: number;
+}
+
+export interface StationResponse {
+  station: Station;
+}
   
