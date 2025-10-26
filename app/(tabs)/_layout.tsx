@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { useColorScheme } from 'react-native';
-import { Chrome as Home, Car, MapPin, History, User, MessageCircle } from 'lucide-react-native';
+import { Chrome as Home, History, User, MessageCircle } from 'lucide-react-native';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -53,24 +53,6 @@ export default function TabLayout() {
           title: 'Đặt xe',
           tabBarIcon: ({ size, color }) => (
             <Home size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="pickup"
-        options={{
-          title: 'Nhận xe',
-          tabBarIcon: ({ size, color }) => (
-            <Car size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="return"
-        options={{
-          title: 'Trả xe',
-          tabBarIcon: ({ size, color }) => (
-            <MapPin size={size} color={color} />
           ),
         }}
       />

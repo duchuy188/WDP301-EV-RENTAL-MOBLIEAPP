@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { Calendar, MapPin, Clock, DollarSign, TrendingUp, Award, ChevronRight } from 'lucide-react-native';
+import { Calendar, MapPin, Clock, DollarSign, TrendingUp, ChevronRight } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { useThemeStore } from '@/store/themeStore';
@@ -48,10 +48,10 @@ export default function HistoryScreen() {
     setRefreshing(false);
   };
 
-  // Mock analytics data
-  const totalSpent = 7100000;
-  const totalTrips = bookings.length || 15;
-  const averageDistance = 32;
+  // Calculate analytics from completed bookings
+  const completedBookings = bookings.filter(b => b.status === 'completed');
+  const totalSpent = completedBookings.reduce((sum, booking) => sum + (booking.final_amount || booking.total_price || 0), 0);
+  const totalTrips = completedBookings.length;
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -279,22 +279,6 @@ export default function HistoryScreen() {
             </View>
             <Text style={styles.statValue}>{formatPrice(totalSpent).replace('₫', '')}</Text>
             <Text style={styles.statLabel}>Tổng chi tiêu</Text>
-          </View>
-          
-          <View style={styles.statCard}>
-            <View style={styles.statIcon}>
-              <MapPin size={20} color={colors.primary} />
-            </View>
-            <Text style={styles.statValue}>{averageDistance}km</Text>
-            <Text style={styles.statLabel}>Quãng đường TB</Text>
-          </View>
-          
-          <View style={styles.statCard}>
-            <View style={styles.statIcon}>
-              <Award size={20} color={colors.primary} />
-            </View>
-            <Text style={styles.statValue}>Eco</Text>
-            <Text style={styles.statLabel}>Hạng thành viên</Text>
           </View>
         </Animated.View>
 

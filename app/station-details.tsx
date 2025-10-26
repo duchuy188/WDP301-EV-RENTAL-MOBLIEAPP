@@ -170,7 +170,7 @@ export default function StationDetailsScreen() {
 
   // Mapping loại xe sang tiếng Việt
   const typeTranslations: { [key: string]: string } = {
-    'scooter': 'Xe máy',
+    'scooter': 'Xe tay ga',
     'motorcycle': 'Xe mô tô',
     'electric': 'Xe điện',
     'bike': 'Xe đạp điện',
