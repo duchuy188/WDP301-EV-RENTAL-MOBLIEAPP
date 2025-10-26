@@ -16,8 +16,9 @@ export const bookingAPI = {
 
   // Cancel (delete) a booking by id. Accept an optional payload (e.g. { reason })
   cancelBooking: async (id: string, payload?: { reason?: string }) => {
-    const config = payload ? { data: payload } : {};
-    const response = await apiClient.delete(`/bookings/${id}`, config as any);
+    const response = await apiClient.delete(`/bookings/${id}`, { 
+      data: payload || { reason: 'Khách hàng yêu cầu hủy' }
+    } as any);
     return response.data;
   },
 

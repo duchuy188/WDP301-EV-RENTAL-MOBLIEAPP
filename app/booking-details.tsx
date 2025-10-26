@@ -103,6 +103,9 @@ export default function BookingDetailsScreen() {
       setBooking(response.booking);
       setCanCancel(response.canCancel || false);
       console.log('Booking details:', response);
+      console.log('Deposit amount from API:', response.booking.deposit_amount);
+      console.log('Total days:', response.booking.total_days);
+      console.log('Total price:', response.booking.total_price);
     } catch (error) {
       console.error('Error loading booking details:', error);
       Alert.alert('Lỗi', 'Không thể tải thông tin đặt xe');
@@ -130,9 +133,9 @@ export default function BookingDetailsScreen() {
   const confirmCancelBooking = async () => {
     try {
       setCanceling(true);
-      await bookingAPI.cancelBooking(bookingId);
+      await bookingAPI.cancelBooking(bookingId, { reason: 'Khách hàng yêu cầu hủy' });
       Alert.alert('Thành công', 'Đã hủy đặt xe thành công', [
-        { text: 'OK', onPress: () => router.back() },
+        { text: 'OK', onPress: () => router.push('/(tabs)/history') },
       ]);
     } catch (error: any) {
       console.error('Error canceling booking:', error);
@@ -198,6 +201,22 @@ export default function BookingDetailsScreen() {
       style: 'currency',
       currency: 'VND',
     }).format(price);
+  };
+
+  const getDepositAmount = (): number => {
+    if (!booking) return 0;
+    
+    // Nếu API trả về deposit_amount > 0, dùng luôn
+    if (booking.deposit_amount && booking.deposit_amount > 0) {
+      return booking.deposit_amount;
+    }
+    
+    // Nếu thuê >= 2 ngày, tính 50% tổng giá
+    if (booking.total_days >= 2) {
+      return booking.total_price * 0.5;
+    }
+    
+    return 0;
   };
 
   const translateCancellationReason = (reason: string): string => {
@@ -363,11 +382,11 @@ export default function BookingDetailsScreen() {
                 <Text style={styles.priceLabel}>Giá thuê/ngày:</Text>
                 <Text style={styles.priceValue}>{formatPrice(booking.price_per_day)}</Text>
               </View>
-              {booking.deposit_amount > 0 && (
+              {getDepositAmount() > 0 && (
                 <View style={styles.priceRow}>
-                  <Text style={styles.priceLabel}>Đặt cọc:</Text>
-                  <Text style={[styles.priceValue, { color: '#F59E0B' }]}>
-                    {formatPrice(booking.deposit_amount)}
+                  <Text style={styles.priceLabel}>Đặt cọc (50%):</Text>
+                  <Text style={[styles.priceValue, { color: '#F59E0B', fontWeight: '700' }]}>
+                    {formatPrice(getDepositAmount())}
                   </Text>
                 </View>
               )}
