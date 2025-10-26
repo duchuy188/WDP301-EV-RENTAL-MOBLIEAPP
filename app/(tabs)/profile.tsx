@@ -11,12 +11,8 @@ import {
   Alert,
   Modal,
   Dimensions,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform
 } from 'react-native';
 import { 
-  User, 
   Settings, 
   CreditCard, 
   CircleHelp as HelpCircle, 
@@ -30,21 +26,11 @@ import {
   Award, 
   Edit3,
   MapPin,
-  Phone,
-  Mail,
-  Calendar,
-  TrendingUp,
-  Zap,
-  Leaf,
   Trophy,
   Gift,
   FileText,
   Camera,
   Share2,
-  Save,
-  X,
-  Upload,
-  CheckCircle
 } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { router } from 'expo-router';
@@ -60,20 +46,6 @@ export default function ProfileScreen() {
   const { user, logout } = useAuthStore();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  
-  // Edit profile form state
-  const [editForm, setEditForm] = useState({
-    name: user?.name || '',
-    phone: user?.phone || '',
-    address: 'Quận 1, TP.HCM', // Mock address
-    avatar: user?.profileImage || '',
-    cccdImage: '',
-    licenseImage: '',
-  });
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [cccdUploaded, setCccdUploaded] = useState(false);
-  const [licenseUploaded, setLicenseUploaded] = useState(false);
 
   const userStats = {
     level: 'Eco Driver',
@@ -113,101 +85,9 @@ export default function ProfileScreen() {
   };
 
   const handleEditProfile = () => {
-    setEditForm({
-      name: user?.name || '',
-      phone: user?.phone || '',
-      address: 'Quận 1, TP.HCM',
-      avatar: user?.profileImage || '',
-      cccdImage: '',
-      licenseImage: '',
-    });
-    setShowEditModal(true);
+    router.push('/edit-profile');
   };
 
-  const handleSaveProfile = async () => {
-    if (!editForm.name.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập họ tên');
-      return;
-    }
-    
-    if (!editForm.phone.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập số điện thoại');
-      return;
-    }
-    
-    if (!editForm.address.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập địa chỉ');
-      return;
-    }
-
-    setIsUpdating(true);
-    
-    // Mock API call
-    setTimeout(() => {
-      setIsUpdating(false);
-      setShowEditModal(false);
-      Alert.alert('Thành công', 'Thông tin đã được cập nhật!');
-    }, 2000);
-  };
-
-  const handleUploadAvatar = () => {
-    Alert.alert(
-      'Chọn ảnh đại diện',
-      'Chọn nguồn ảnh',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        { text: 'Camera', onPress: () => mockUploadImage('avatar') },
-        { text: 'Thư viện', onPress: () => mockUploadImage('avatar') },
-      ]
-    );
-  };
-
-  const handleUploadCCCD = () => {
-    Alert.alert(
-      'Chụp ảnh CCCD',
-      'Vui lòng chụp rõ 2 mặt của CCCD',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        { text: 'Chụp ảnh', onPress: () => mockUploadDocument('cccd') },
-      ]
-    );
-  };
-
-  const handleUploadLicense = () => {
-    Alert.alert(
-      'Chụp ảnh GPLX',
-      'Vui lòng chụp rõ 2 mặt của Giấy phép lái xe',
-      [
-        { text: 'Hủy', style: 'cancel' },
-        { text: 'Chụp ảnh', onPress: () => mockUploadDocument('license') },
-      ]
-    );
-  };
-
-  const mockUploadImage = (type: string) => {
-    setTimeout(() => {
-      if (type === 'avatar') {
-        setEditForm(prev => ({
-          ...prev,
-          avatar: 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=400'
-        }));
-      }
-      Alert.alert('Thành công', 'Ảnh đã được tải lên!');
-    }, 1000);
-  };
-
-  const mockUploadDocument = (type: string) => {
-    setTimeout(() => {
-      if (type === 'cccd') {
-        setCccdUploaded(true);
-        setEditForm(prev => ({ ...prev, cccdImage: 'mock-cccd-url' }));
-      } else if (type === 'license') {
-        setLicenseUploaded(true);
-        setEditForm(prev => ({ ...prev, licenseImage: 'mock-license-url' }));
-      }
-      Alert.alert('Thành công', 'Tài liệu đã được tải lên và đang chờ xác thực!');
-    }, 1500);
-  };
   const toggleTheme = () => {
     const newMode = mode === 'light' ? 'dark' : mode === 'dark' ? 'system' : 'light';
     setMode(newMode);
@@ -247,12 +127,18 @@ export default function ProfileScreen() {
         },
         {
           id: 2,
+          title: 'Xác thực kyc',
+          icon: <FileText size={20} color={colors.textSecondary} />,
+          onPress: () => router.push('/verify-documents'),
+        },
+        {
+          id: 3,
           title: 'Phương thức thanh toán',
           icon: <CreditCard size={20} color={colors.textSecondary} />,
           onPress: () => Alert.alert('Thanh toán', 'Tính năng đang phát triển'),
         },
         {
-          id: 3,
+          id: 4,
           title: 'Địa chỉ đã lưu',
           icon: <MapPin size={20} color={colors.textSecondary} />,
           onPress: () => Alert.alert('Địa chỉ', 'Tính năng đang phát triển'),
@@ -263,21 +149,21 @@ export default function ProfileScreen() {
       title: 'Ưu đãi & Điểm thưởng',
       items: [
         {
-          id: 4,
+          id: 5,
           title: 'Điểm thưởng của tôi',
           icon: <Gift size={20} color={colors.textSecondary} />,
           badge: `${userStats.points} điểm`,
           onPress: () => Alert.alert('Điểm thưởng', `Bạn có ${userStats.points} điểm thưởng`),
         },
         {
-          id: 5,
+          id: 6,
           title: 'Mã giảm giá',
           icon: <Trophy size={20} color={colors.textSecondary} />,
           badge: '3 mã',
           onPress: () => Alert.alert('Mã giảm giá', 'Bạn có 3 mã giảm giá khả dụng'),
         },
         {
-          id: 6,
+          id: 7,
           title: 'Chương trình giới thiệu',
           icon: <Share2 size={20} color={colors.textSecondary} />,
           onPress: () => Alert.alert('Giới thiệu', 'Mời bạn bè và nhận thưởng!'),
@@ -288,25 +174,25 @@ export default function ProfileScreen() {
       title: 'Hỗ trợ',
       items: [
         {
-          id: 7,
+          id: 8,
           title: 'Trung tâm trợ giúp',
           icon: <HelpCircle size={20} color={colors.textSecondary} />,
           onPress: () => Alert.alert('Trợ giúp', 'Liên hệ: support@evrenter.com'),
         },
         {
-          id: 8,
+          id: 9,
           title: 'Điều khoản sử dụng',
           icon: <FileText size={20} color={colors.textSecondary} />,
           onPress: () => Alert.alert('Điều khoản', 'Tính năng đang phát triển'),
         },
         {
-          id: 9,
+          id: 10,
           title: 'Chính sách bảo mật',
           icon: <Shield size={20} color={colors.textSecondary} />,
           onPress: () => Alert.alert('Bảo mật', 'Tính năng đang phát triển'),
         },
         {
-          id: 10,
+          id: 11,
           title: 'Đánh giá ứng dụng',
           icon: <Star size={20} color={colors.textSecondary} />,
           onPress: () => Alert.alert('Đánh giá', 'Cảm ơn bạn đã sử dụng ứng dụng!'),
@@ -703,194 +589,6 @@ export default function ProfileScreen() {
     confirmButtonText: {
       color: '#FFFFFF',
     },
-    // Edit Profile Modal Styles
-    editModalContainer: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-    },
-    editModalContent: {
-      flex: 1,
-      backgroundColor: colors.surface,
-      marginTop: 50,
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
-    },
-    editModalHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingVertical: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    editModalTitle: {
-      fontSize: 20,
-      fontWeight: 'bold',
-      color: colors.text,
-      fontFamily: 'Inter-Bold',
-    },
-    closeButton: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: colors.border,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    editForm: {
-      flex: 1,
-      padding: 20,
-    },
-    avatarSection: {
-      alignItems: 'center',
-      marginBottom: 30,
-    },
-    editAvatar: {
-      width: 100,
-      height: 100,
-      borderRadius: 50,
-      backgroundColor: colors.border,
-      marginBottom: 12,
-    },
-    changeAvatarButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.primary + '20',
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 20,
-      gap: 8,
-    },
-    changeAvatarText: {
-      fontSize: 14,
-      color: colors.primary,
-      fontWeight: '600',
-      fontFamily: 'Inter-Medium',
-    },
-    inputGroup: {
-      marginBottom: 20,
-    },
-    inputLabel: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.text,
-      marginBottom: 8,
-      fontFamily: 'Inter-Medium',
-    },
-    inputContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 12,
-      backgroundColor: colors.surface,
-      paddingHorizontal: 16,
-      height: 50,
-    },
-    input: {
-      flex: 1,
-      fontSize: 16,
-      color: colors.text,
-      marginLeft: 12,
-      fontFamily: 'Inter-Regular',
-    },
-    documentSection: {
-      marginTop: 20,
-    },
-    documentTitle: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.text,
-      marginBottom: 16,
-      fontFamily: 'Inter-Medium',
-    },
-    documentCard: {
-      backgroundColor: colors.background,
-      borderRadius: 12,
-      padding: 16,
-      marginBottom: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    documentCardUploaded: {
-      borderColor: colors.success,
-      backgroundColor: colors.success + '10',
-    },
-    documentHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 8,
-    },
-    documentName: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: colors.text,
-      fontFamily: 'Inter-Medium',
-    },
-    documentStatus: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-    },
-    statusText: {
-      fontSize: 12,
-      fontWeight: '600',
-      fontFamily: 'Inter-Medium',
-    },
-    statusUploaded: {
-      color: colors.success,
-    },
-    statusPending: {
-      color: colors.textSecondary,
-    },
-    documentDesc: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      marginBottom: 12,
-      fontFamily: 'Inter-Regular',
-    },
-    uploadButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.primary,
-      paddingVertical: 10,
-      borderRadius: 8,
-      gap: 8,
-    },
-    uploadButtonUploaded: {
-      backgroundColor: colors.success,
-    },
-    uploadButtonText: {
-      color: '#FFFFFF',
-      fontSize: 14,
-      fontWeight: '600',
-      fontFamily: 'Inter-Medium',
-    },
-    saveButtonContainer: {
-      padding: 20,
-      paddingTop: 0,
-    },
-    saveButton: {
-      backgroundColor: colors.primary,
-      borderRadius: 12,
-      height: 50,
-      justifyContent: 'center',
-      alignItems: 'center',
-      flexDirection: 'row',
-      gap: 8,
-    },
-    saveButtonDisabled: {
-      backgroundColor: colors.border,
-    },
-    saveButtonText: {
-      color: '#FFFFFF',
-      fontSize: 16,
-      fontWeight: 'bold',
-      fontFamily: 'Inter-Bold',
-    },
   });
 
   const progressPercentage = (userStats.points / userStats.nextLevelPoints) * 100;
@@ -1096,191 +794,6 @@ export default function ProfileScreen() {
             </View>
           </View>
         </View>
-      </Modal>
-
-      {/* Edit Profile Modal */}
-      <Modal visible={showEditModal} transparent animationType="slide">
-        <KeyboardAvoidingView
-          style={styles.editModalContainer}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <View style={styles.editModalContent}>
-            <View style={styles.editModalHeader}>
-              <Text style={styles.editModalTitle}>Chỉnh sửa thông tin</Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setShowEditModal(false)}
-              >
-                <X size={18} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.editForm} showsVerticalScrollIndicator={false}>
-              {/* Avatar Section */}
-              <View style={styles.avatarSection}>
-                <Image
-                  source={{ uri: editForm.avatar || 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=400' }}
-                  style={styles.editAvatar}
-                />
-                <TouchableOpacity
-                  style={styles.changeAvatarButton}
-                  onPress={handleUploadAvatar}
-                >
-                  <Camera size={16} color={colors.primary} />
-                  <Text style={styles.changeAvatarText}>Đổi ảnh đại diện</Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Personal Information */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Họ và tên *</Text>
-                <View style={styles.inputContainer}>
-                  <User size={20} color={colors.textSecondary} />
-                  <TextInput
-                    style={styles.input}
-                    value={editForm.name}
-                    onChangeText={(text) => setEditForm(prev => ({ ...prev, name: text }))}
-                    placeholder="Nhập họ và tên"
-                    placeholderTextColor={colors.textSecondary}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Số điện thoại *</Text>
-                <View style={styles.inputContainer}>
-                  <Phone size={20} color={colors.textSecondary} />
-                  <TextInput
-                    style={styles.input}
-                    value={editForm.phone}
-                    onChangeText={(text) => setEditForm(prev => ({ ...prev, phone: text }))}
-                    placeholder="Nhập số điện thoại"
-                    placeholderTextColor={colors.textSecondary}
-                    keyboardType="phone-pad"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Địa chỉ *</Text>
-                <View style={styles.inputContainer}>
-                  <MapPin size={20} color={colors.textSecondary} />
-                  <TextInput
-                    style={styles.input}
-                    value={editForm.address}
-                    onChangeText={(text) => setEditForm(prev => ({ ...prev, address: text }))}
-                    placeholder="Nhập địa chỉ"
-                    placeholderTextColor={colors.textSecondary}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Email</Text>
-                <View style={styles.inputContainer}>
-                  <Mail size={20} color={colors.textSecondary} />
-                  <TextInput
-                    style={[styles.input, { color: colors.textSecondary }]}
-                    value={user?.email || ''}
-                    placeholder="Email"
-                    placeholderTextColor={colors.textSecondary}
-                    editable={false}
-                  />
-                </View>
-              </View>
-
-              {/* Document Verification Section */}
-              <View style={styles.documentSection}>
-                <Text style={styles.documentTitle}>Xác thực tài liệu</Text>
-                
-                {/* CCCD Card */}
-                <View style={[styles.documentCard, cccdUploaded && styles.documentCardUploaded]}>
-                  <View style={styles.documentHeader}>
-                    <Text style={styles.documentName}>Căn cước công dân (CCCD)</Text>
-                    <View style={styles.documentStatus}>
-                      {cccdUploaded ? (
-                        <CheckCircle size={16} color={colors.success} />
-                      ) : (
-                        <Upload size={16} color={colors.textSecondary} />
-                      )}
-                      <Text style={[
-                        styles.statusText,
-                        cccdUploaded ? styles.statusUploaded : styles.statusPending
-                      ]}>
-                        {cccdUploaded ? 'Đã tải lên' : 'Chưa tải lên'}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={styles.documentDesc}>
-                    Chụp rõ 2 mặt của CCCD để xác thực danh tính
-                  </Text>
-                  <TouchableOpacity
-                    style={[styles.uploadButton, cccdUploaded && styles.uploadButtonUploaded]}
-                    onPress={handleUploadCCCD}
-                  >
-                    <Camera size={16} color="#FFFFFF" />
-                    <Text style={styles.uploadButtonText}>
-                      {cccdUploaded ? 'Tải lên lại' : 'Chụp ảnh CCCD'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* License Card */}
-                <View style={[styles.documentCard, licenseUploaded && styles.documentCardUploaded]}>
-                  <View style={styles.documentHeader}>
-                    <Text style={styles.documentName}>Giấy phép lái xe (GPLX)</Text>
-                    <View style={styles.documentStatus}>
-                      {licenseUploaded ? (
-                        <CheckCircle size={16} color={colors.success} />
-                      ) : (
-                        <Upload size={16} color={colors.textSecondary} />
-                      )}
-                      <Text style={[
-                        styles.statusText,
-                        licenseUploaded ? styles.statusUploaded : styles.statusPending
-                      ]}>
-                        {licenseUploaded ? 'Đã tải lên' : 'Chưa tải lên'}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={styles.documentDesc}>
-                    Chụp rõ 2 mặt của GPLX để xác thực quyền lái xe
-                  </Text>
-                  <TouchableOpacity
-                    style={[styles.uploadButton, licenseUploaded && styles.uploadButtonUploaded]}
-                    onPress={handleUploadLicense}
-                  >
-                    <Camera size={16} color="#FFFFFF" />
-                    <Text style={styles.uploadButtonText}>
-                      {licenseUploaded ? 'Tải lên lại' : 'Chụp ảnh GPLX'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </ScrollView>
-
-            {/* Save Button */}
-            <View style={styles.saveButtonContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.saveButton,
-                  isUpdating && styles.saveButtonDisabled
-                ]}
-                onPress={handleSaveProfile}
-                disabled={isUpdating}
-              >
-                {isUpdating ? (
-                  <Text style={styles.saveButtonText}>Đang cập nhật...</Text>
-                ) : (
-                  <>
-                    <Save size={20} color="#FFFFFF" />
-                    <Text style={styles.saveButtonText}>Lưu thay đổi</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
