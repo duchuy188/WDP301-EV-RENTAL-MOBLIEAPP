@@ -280,9 +280,9 @@ export default function LoginScreen() {
       <ScrollView contentContainerStyle={styles.scrollView}>
         <Animated.View entering={FadeInUp.delay(100)} style={styles.header}>
           <Image
-            source={{ uri: 'https://images.pexels.com/photos/110844/pexels-photo-110844.jpeg?auto=compress&cs=tinysrgb&w=400' }}
+            source={require('@/assets/images/evrenter.jpg')}
             style={styles.heroImage}
-            resizeMode="cover"
+            resizeMode="contain"
           />
           <Text style={styles.title}>EV Renter</Text>
           <Text style={styles.subtitle}>

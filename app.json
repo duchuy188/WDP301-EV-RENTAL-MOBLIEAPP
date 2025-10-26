@@ -4,7 +4,7 @@
         "slug": "EV Renter",
         "version": "1.0.0",
         "orientation": "portrait",
-        "icon": "./assets/images/icon.png",
+        "icon": "./assets/images/evrenter.jpg",
         "scheme": "myapp",
         "userInterfaceStyle": "automatic",
         "newArchEnabled": true,
@@ -37,7 +37,7 @@
         "web": {
             "bundler": "metro",
             "output": "single",
-            "favicon": "./assets/images/favicon.png"
+            "favicon": "./assets/images/evrenter.jpg"
         },
         "plugins": [
             "expo-router",
