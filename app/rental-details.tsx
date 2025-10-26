@@ -602,7 +602,6 @@ export default function RentalDetailsScreen() {
               <TouchableOpacity
                 style={[styles.reviewButton, { backgroundColor: colors.primary }]}
                 onPress={() => {
-                  // TODO: Navigate to review/feedback screen
                   Alert.alert(
                     '⭐ Đánh giá',
                     'Bạn muốn đánh giá chuyến thuê xe này?',
@@ -611,9 +610,10 @@ export default function RentalDetailsScreen() {
                       { 
                         text: 'Đánh giá ngay',
                         onPress: () => {
-                          // Navigate to feedback screen with rental info
-                          console.log('Navigate to feedback screen with rental ID:', rental._id);
-                          // router.push({ pathname: '/feedback', params: { rentalId: rental._id } });
+                          router.push({
+                            pathname: '/submit-feedback',
+                            params: { rentalId: rental._id }
+                          });
                         }
                       }
                     ]
