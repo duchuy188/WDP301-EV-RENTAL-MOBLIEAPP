@@ -83,6 +83,64 @@ export const feedbackAPI = {
   }): Promise<FeedbackResponse> => {
     const response = await apiClient.get<FeedbackResponse>('/feedback/customer', { params });
     return response.data;
+  },
+
+  // Get feedback for a specific rental
+  getFeedbackByRental: async (rentalId: string): Promise<Feedback | null> => {
+    try {
+      if (__DEV__) {
+        console.log('[getFeedbackByRental] Checking feedback for rental:', rentalId);
+      }
+      
+      // Get all feedbacks của customer và tìm feedback cho rental này
+      const response = await apiClient.get<FeedbackResponse>('/feedback/customer', {
+        params: { limit: 100 } // Lấy nhiều để chắc chắn có
+      });
+
+      if (__DEV__) {
+        console.log('[getFeedbackByRental] Total feedbacks:', response.data?.data?.feedbacks?.length || 0);
+      }
+
+      if (response.data?.data?.feedbacks && response.data.data.feedbacks.length > 0) {
+        // Tìm feedback cho rental này
+        const feedback = response.data.data.feedbacks.find((f: Feedback) => {
+          const rentalIdInFeedback = typeof f.rental_id === 'string' 
+            ? f.rental_id 
+            : (f.rental_id as any)?._id;
+          
+          if (__DEV__) {
+            console.log('[getFeedbackByRental] Comparing:', {
+              rentalIdInFeedback,
+              targetRentalId: rentalId,
+              match: rentalIdInFeedback === rentalId
+            });
+          }
+          
+          return rentalIdInFeedback === rentalId;
+        });
+
+        if (__DEV__) {
+          console.log('[getFeedbackByRental] Found feedback:', feedback ? 'YES' : 'NO');
+        }
+
+        return feedback || null;
+      }
+
+      if (__DEV__) {
+        console.log('[getFeedbackByRental] No feedbacks found');
+      }
+      return null;
+    } catch (error: any) {
+      if (__DEV__) {
+        console.error('[getFeedbackByRental] Error:', error?.message);
+      }
+      // Nếu 404 (chưa có feedback) thì return null
+      if (error?.response?.status === 404) {
+        return null;
+      }
+      // Các lỗi khác cũng return null để không block UI
+      return null;
+    }
   }
 };
  

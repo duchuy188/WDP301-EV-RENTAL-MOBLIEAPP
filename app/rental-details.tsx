@@ -11,7 +11,7 @@ import {
   Modal,
   Dimensions,
 } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import {
   ArrowLeft,
   Calendar,
@@ -39,7 +39,9 @@ import {
 } from 'lucide-react-native';
 import { useThemeStore } from '@/store/themeStore';
 import { rentalAPI } from '@/api/rentalsAPI';
+import { feedbackAPI } from '@/api/feedbackAPI';
 import { Rental } from '@/types/rentals';
+import { Feedback } from '@/types/feedback';
 
 export default function RentalDetailsScreen() {
   const { colors } = useThemeStore();
@@ -51,10 +53,20 @@ export default function RentalDetailsScreen() {
   const [imageModalVisible, setImageModalVisible] = useState(false);
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [existingFeedback, setExistingFeedback] = useState<Feedback | null>(null);
+  const [loadingFeedback, setLoadingFeedback] = useState(false);
+  const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
 
   useEffect(() => {
     loadRentalDetails();
   }, [rentalId]);
+
+  // Reload feedback khi quay lại trang (sau khi submit feedback)
+  useFocusEffect(
+    React.useCallback(() => {
+      checkExistingFeedback();
+    }, [rentalId])
+  );
 
   const loadRentalDetails = async () => {
     try {
@@ -75,6 +87,23 @@ export default function RentalDetailsScreen() {
       router.back();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkExistingFeedback = async () => {
+    try {
+      setLoadingFeedback(true);
+      console.log('🔍 Checking existing feedback for rental:', rentalId);
+      const feedback = await feedbackAPI.getFeedbackByRental(rentalId);
+      console.log('📋 Existing feedback result:', feedback);
+      console.log('📋 Feedback type:', feedback?.type);
+      console.log('📋 Setting existingFeedback state to:', feedback ? 'Feedback object' : 'null');
+      setExistingFeedback(feedback);
+    } catch (error) {
+      console.error('❌ Error checking feedback:', error);
+      setExistingFeedback(null);
+    } finally {
+      setLoadingFeedback(false);
     }
   };
 
@@ -597,36 +626,295 @@ export default function RentalDetailsScreen() {
           )}
 
           {/* Button đánh giá - Chỉ hiện khi completed */}
-          {rental.status === 'completed' && (
+          {rental.status === 'completed' && !loadingFeedback && (
             <View style={styles.section}>
-              <TouchableOpacity
-                style={[styles.reviewButton, { backgroundColor: colors.primary }]}
-                onPress={() => {
-                  Alert.alert(
-                    '⭐ Đánh giá',
-                    'Bạn muốn đánh giá chuyến thuê xe này?',
-                    [
-                      { text: 'Để sau', style: 'cancel' },
-                      { 
-                        text: 'Đánh giá ngay',
-                        onPress: () => {
-                          router.push({
-                            pathname: '/submit-feedback',
-                            params: { rentalId: rental._id }
-                          });
+              {existingFeedback ? (
+                // Đã có feedback - hiển thị button xem
+                <TouchableOpacity
+                  style={[
+                    styles.reviewButton,
+                    { 
+                      backgroundColor: existingFeedback.type === 'rating' ? '#3B82F6' : '#EF4444'
+                    }
+                  ]}
+                  onPress={() => {
+                    setFeedbackModalVisible(true);
+                  }}
+                >
+                  <Eye size={20} color="#fff" />
+                  <Text style={styles.reviewButtonText}>
+                    {existingFeedback.type === 'rating' ? 'Xem đánh giá của bạn' : 'Xem khiếu nại của bạn'}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                // Chưa có feedback - hiển thị button đánh giá
+                <TouchableOpacity
+                  style={[styles.reviewButton, { backgroundColor: colors.primary }]}
+                  onPress={() => {
+                    Alert.alert(
+                      '⭐ Đánh giá',
+                      'Bạn muốn đánh giá chuyến thuê xe này?',
+                      [
+                        { text: 'Để sau', style: 'cancel' },
+                        { 
+                          text: 'Đánh giá ngay',
+                          onPress: () => {
+                            router.push({
+                              pathname: '/submit-feedback',
+                              params: { rentalId: rental._id }
+                            });
+                          }
                         }
-                      }
-                    ]
-                  );
-                }}
-              >
-                <Star size={20} color="#fff" />
-                <Text style={styles.reviewButtonText}>Đánh giá chuyến thuê xe</Text>
-              </TouchableOpacity>
+                      ]
+                    );
+                  }}
+                >
+                  <Star size={20} color="#fff" />
+                  <Text style={styles.reviewButtonText}>Đánh giá chuyến thuê xe</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>
       </ScrollView>
+
+      {/* Feedback Detail Modal */}
+      <Modal
+        visible={feedbackModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setFeedbackModalVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <View style={styles.feedbackModalContainer}>
+            {/* Header */}
+            <View style={styles.feedbackModalHeader}>
+              <Text style={styles.feedbackModalTitle}>
+                {existingFeedback?.type === 'rating' ? '⭐ Đánh giá của bạn' : '🚨 Khiếu nại của bạn'}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setFeedbackModalVisible(false)}
+                style={styles.feedbackModalCloseButton}
+              >
+                <X size={24} color="#111827" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.feedbackModalContent}>
+              {existingFeedback?.type === 'rating' ? (
+                // Rating details
+                <View>
+                  {/* Overall Rating */}
+                  <View style={styles.feedbackSection}>
+                    <Text style={styles.feedbackSectionTitle}>Đánh giá tổng thể</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 }}>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          size={32}
+                          color="#FCD34D"
+                          fill={star <= (existingFeedback.overall_rating || 0) ? '#FCD34D' : 'transparent'}
+                        />
+                      ))}
+                      <Text style={{ fontSize: 18, fontWeight: '700', marginLeft: 8 }}>
+                        {existingFeedback.overall_rating}/5
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Other ratings */}
+                  <View style={styles.feedbackSection}>
+                    <Text style={styles.feedbackSectionTitle}>Chi tiết đánh giá</Text>
+                    {existingFeedback.staff_service && (
+                      <View style={styles.ratingDetailRow}>
+                        <Text style={styles.ratingDetailLabel}>Dịch vụ nhân viên:</Text>
+                        <View style={{ flexDirection: 'row', gap: 2 }}>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              size={16}
+                              color={star <= (existingFeedback.staff_service || 0) ? '#FCD34D' : '#D1D5DB'}
+                              fill={star <= (existingFeedback.staff_service || 0) ? '#FCD34D' : 'transparent'}
+                            />
+                          ))}
+                          <Text style={{ fontSize: 14, marginLeft: 4 }}>{existingFeedback.staff_service}/5</Text>
+                        </View>
+                      </View>
+                    )}
+                    {existingFeedback.vehicle_condition && (
+                      <View style={styles.ratingDetailRow}>
+                        <Text style={styles.ratingDetailLabel}>Tình trạng xe:</Text>
+                        <View style={{ flexDirection: 'row', gap: 2 }}>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              size={16}
+                              color={star <= (existingFeedback.vehicle_condition || 0) ? '#FCD34D' : '#D1D5DB'}
+                              fill={star <= (existingFeedback.vehicle_condition || 0) ? '#FCD34D' : 'transparent'}
+                            />
+                          ))}
+                          <Text style={{ fontSize: 14, marginLeft: 4 }}>{existingFeedback.vehicle_condition}/5</Text>
+                        </View>
+                      </View>
+                    )}
+                    {existingFeedback.station_cleanliness && (
+                      <View style={styles.ratingDetailRow}>
+                        <Text style={styles.ratingDetailLabel}>Vệ sinh trạm:</Text>
+                        <View style={{ flexDirection: 'row', gap: 2 }}>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              size={16}
+                              color={star <= (existingFeedback.station_cleanliness || 0) ? '#FCD34D' : '#D1D5DB'}
+                              fill={star <= (existingFeedback.station_cleanliness || 0) ? '#FCD34D' : 'transparent'}
+                            />
+                          ))}
+                          <Text style={{ fontSize: 14, marginLeft: 4 }}>{existingFeedback.station_cleanliness}/5</Text>
+                        </View>
+                      </View>
+                    )}
+                    {existingFeedback.checkout_process && (
+                      <View style={styles.ratingDetailRow}>
+                        <Text style={styles.ratingDetailLabel}>Quy trình nhận/trả xe:</Text>
+                        <View style={{ flexDirection: 'row', gap: 2 }}>
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              size={16}
+                              color={star <= (existingFeedback.checkout_process || 0) ? '#FCD34D' : '#D1D5DB'}
+                              fill={star <= (existingFeedback.checkout_process || 0) ? '#FCD34D' : 'transparent'}
+                            />
+                          ))}
+                          <Text style={{ fontSize: 14, marginLeft: 4 }}>{existingFeedback.checkout_process}/5</Text>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Comment */}
+                  {existingFeedback.comment && (
+                    <View style={styles.feedbackSection}>
+                      <Text style={styles.feedbackSectionTitle}>Nhận xét của bạn</Text>
+                      <Text style={styles.feedbackCommentText}>{existingFeedback.comment}</Text>
+                    </View>
+                  )}
+
+                  {/* Images */}
+                  {existingFeedback.images && existingFeedback.images.length > 0 && (
+                    <View style={styles.feedbackSection}>
+                      <Text style={styles.feedbackSectionTitle}>Hình ảnh ({existingFeedback.images.length})</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                        {existingFeedback.images.map((img, idx) => (
+                          <TouchableOpacity
+                            key={idx}
+                            onPress={() => {
+                              setSelectedImages(existingFeedback.images || []);
+                              setSelectedImageIndex(idx);
+                              setFeedbackModalVisible(false);
+                              setImageModalVisible(true);
+                            }}
+                            style={{ marginRight: 8 }}
+                          >
+                            <Image
+                              source={{ uri: img }}
+                              style={{ width: 100, height: 100, borderRadius: 8 }}
+                            />
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  )}
+                </View>
+              ) : (
+                // Complaint details
+                <View>
+                  {existingFeedback?.title && (
+                    <View style={styles.feedbackSection}>
+                      <Text style={styles.feedbackSectionTitle}>Tiêu đề</Text>
+                      <Text style={styles.feedbackCommentText}>{existingFeedback.title}</Text>
+                    </View>
+                  )}
+                  
+                  {existingFeedback?.description && (
+                    <View style={styles.feedbackSection}>
+                      <Text style={styles.feedbackSectionTitle}>Mô tả</Text>
+                      <Text style={styles.feedbackCommentText}>{existingFeedback.description}</Text>
+                    </View>
+                  )}
+
+                  {existingFeedback?.category && (
+                    <View style={styles.feedbackSection}>
+                      <Text style={styles.feedbackSectionTitle}>Danh mục</Text>
+                      <Text style={styles.feedbackCommentText}>{existingFeedback.category}</Text>
+                    </View>
+                  )}
+
+                  {existingFeedback?.comment && (
+                    <View style={styles.feedbackSection}>
+                      <Text style={styles.feedbackSectionTitle}>Ghi chú</Text>
+                      <Text style={styles.feedbackCommentText}>{existingFeedback.comment}</Text>
+                    </View>
+                  )}
+
+                  {existingFeedback?.status && (
+                    <View style={styles.feedbackSection}>
+                      <Text style={styles.feedbackSectionTitle}>Trạng thái</Text>
+                      <Text style={[styles.feedbackCommentText, { 
+                        color: existingFeedback.status === 'resolved' ? '#10B981' : '#F59E0B',
+                        fontWeight: '600'
+                      }]}>
+                        {existingFeedback.status === 'resolved' ? 'Đã giải quyết' : 'Đang xử lý'}
+                      </Text>
+                    </View>
+                  )}
+
+                  {existingFeedback?.response && (
+                    <View style={[styles.feedbackSection, { backgroundColor: '#D1FAE5', padding: 12, borderRadius: 8 }]}>
+                      <Text style={[styles.feedbackSectionTitle, { color: '#065F46' }]}>Phản hồi từ hệ thống</Text>
+                      <Text style={[styles.feedbackCommentText, { color: '#047857' }]}>{existingFeedback.response}</Text>
+                    </View>
+                  )}
+
+                  {/* Images */}
+                  {existingFeedback?.images && existingFeedback.images.length > 0 && (
+                    <View style={styles.feedbackSection}>
+                      <Text style={styles.feedbackSectionTitle}>Hình ảnh ({existingFeedback.images.length})</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                        {existingFeedback.images.map((img, idx) => (
+                          <TouchableOpacity
+                            key={idx}
+                            onPress={() => {
+                              setSelectedImages(existingFeedback.images || []);
+                              setSelectedImageIndex(idx);
+                              setFeedbackModalVisible(false);
+                              setImageModalVisible(true);
+                            }}
+                            style={{ marginRight: 8 }}
+                          >
+                            <Image
+                              source={{ uri: img }}
+                              style={{ width: 100, height: 100, borderRadius: 8 }}
+                            />
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* Created date */}
+              {existingFeedback?.createdAt && (
+                <View style={{ marginTop: 20, paddingTop: 20, borderTopWidth: 1, borderTopColor: '#E5E7EB' }}>
+                  <Text style={{ fontSize: 12, color: '#6B7280', textAlign: 'center' }}>
+                    Đánh giá vào: {formatDate(existingFeedback.createdAt)}
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Image Modal */}
       <Modal
@@ -1026,5 +1314,65 @@ const styles = StyleSheet.create({
     width: Dimensions.get('window').width - 60,
     height: Dimensions.get('window').height * 0.7,
     borderRadius: 12,
+  },
+  feedbackModalContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    maxHeight: '90%',
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  feedbackModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  feedbackModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  feedbackModalCloseButton: {
+    padding: 4,
+  },
+  feedbackModalContent: {
+    padding: 20,
+  },
+  feedbackSection: {
+    marginBottom: 20,
+  },
+  feedbackSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  feedbackCommentText: {
+    fontSize: 14,
+    color: '#111827',
+    lineHeight: 20,
+  },
+  ratingDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  ratingDetailLabel: {
+    fontSize: 14,
+    color: '#6B7280',
   },
 });

@@ -271,7 +271,10 @@ export default function SubmitFeedbackScreen() {
         [
           {
             text: 'OK',
-            onPress: () => router.back(),
+            onPress: () => {
+              // Quay lại và reload
+              router.back();
+            },
           },
         ]
       );
@@ -350,7 +353,10 @@ export default function SubmitFeedbackScreen() {
         [
           {
             text: 'OK',
-            onPress: () => router.back(),
+            onPress: () => {
+              // Quay lại và reload
+              router.back();
+            },
           },
         ]
       );
