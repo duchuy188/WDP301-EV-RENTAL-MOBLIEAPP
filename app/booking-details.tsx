@@ -25,11 +25,13 @@ import {
   Loader,
   Eye,
   Download,
+  Bike,
 } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { useThemeStore } from '@/store/themeStore';
 import { bookingAPI } from '@/api/bookingAPI';
 import { contractAPI } from '@/api/contractAPI';
+import { rentalAPI } from '@/api/rentalsAPI';
 
 interface BookingDetail {
   _id: string;
@@ -84,6 +86,13 @@ interface BookingDetail {
   contract_id?: string;
   createdAt: string;
   updatedAt: string;
+  payments?: {
+    _id: string;
+    amount: number;
+    payment_method: string;
+    status: string;
+    payment_type: string;
+  }[];
 }
 
 export default function BookingDetailsScreen() {
@@ -97,6 +106,7 @@ export default function BookingDetailsScreen() {
   const [canceling, setCanceling] = useState(false);
   const [contractId, setContractId] = useState<string | null>(null);
   const [loadingContract, setLoadingContract] = useState(false);
+  const [rentalId, setRentalId] = useState<string | null>(null);
 
   useEffect(() => {
     loadBookingDetails();
@@ -109,6 +119,8 @@ export default function BookingDetailsScreen() {
       setBooking(response.booking);
       setCanCancel(response.canCancel || false);
       console.log('Booking details:', response);
+      console.log('Booking payments:', response.booking.payments);
+      console.log('Booking total_price:', response.booking.total_price);
       console.log('Contract ID from booking:', response.booking.contract_id);
       console.log('Booking status:', response.booking.status);
       
@@ -119,12 +131,43 @@ export default function BookingDetailsScreen() {
         // Otherwise, try to find contract - pass booking data directly
         loadContractByBookingData(response.booking);
       }
+
+      // Try to find rental for this booking
+      loadRentalByBooking(response.booking);
     } catch (error) {
       console.error('Error loading booking details:', error);
       Alert.alert('Lỗi', 'Không thể tải thông tin đặt xe');
       router.back();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRentalByBooking = async (bookingData: any) => {
+    try {
+      // Get all rentals and find by booking_id
+      const response = await rentalAPI.getRentals();
+      console.log('🔍 Searching rental for booking:', bookingData.code);
+      
+      if (response.rentals && response.rentals.length > 0) {
+        const bookingIdToFind = bookingData._id;
+        
+        const matchingRental = response.rentals.find((rental: any) => {
+          const rentalBookingId = typeof rental.booking_id === 'string' 
+            ? rental.booking_id 
+            : rental.booking_id?._id;
+          return rentalBookingId === bookingIdToFind;
+        });
+        
+        if (matchingRental) {
+          setRentalId(matchingRental._id);
+          console.log('✅ Found rental:', matchingRental._id, matchingRental.code);
+        } else {
+          console.log('❌ No rental found for this booking');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error loading rental:', error);
     }
   };
 
@@ -272,6 +315,27 @@ export default function BookingDetailsScreen() {
     }).format(price);
   };
 
+  const getTotalPrice = (): number => {
+    if (!booking) return 0;
+    
+    // Ưu tiên tính từ payments nếu có
+    if (booking.payments && booking.payments.length > 0) {
+      const total = booking.payments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+      console.log('💰 Total from payments:', total);
+      return total;
+    }
+    
+    // Nếu không có payments, thử tính từ các phí
+    if (booking.total_price > 0 || booking.deposit_amount > 0 || booking.late_fee > 0 || booking.damage_fee > 0) {
+      const total = (booking.total_price || 0) + (booking.late_fee || 0) + (booking.damage_fee || 0) + (booking.other_fees || 0);
+      console.log('💰 Total from fees:', total);
+      return total;
+    }
+    
+    console.log('💰 No price data available');
+    return 0;
+  };
+
   const getDepositAmount = (): number => {
     if (!booking) return 0;
     
@@ -345,85 +409,6 @@ export default function BookingDetailsScreen() {
             </View>
           </View>
 
-          {/* Contract Actions - Placed prominently */}
-          {contractId && ['confirmed', 'active', 'completed'].includes(booking.status) ? (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>📄 Hợp đồng thuê xe</Text>
-              <View style={styles.contractActions}>
-                <TouchableOpacity
-                  style={[styles.contractButton, { backgroundColor: colors.primary }]}
-                  onPress={() => router.push({
-                    pathname: '/contract-view',
-                    params: { id: contractId, mode: 'html' }
-                  })}
-                >
-                  <Eye size={20} color="#fff" />
-                  <Text style={styles.contractButtonText}>Xem hợp đồng</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.contractButton, { backgroundColor: '#10B981' }]}
-                  onPress={() => router.push({
-                    pathname: '/contract-view',
-                    params: { id: contractId, mode: 'pdf' }
-                  })}
-                >
-                  <Download size={20} color="#fff" />
-                  <Text style={styles.contractButtonText}>Tải PDF</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : loadingContract ? (
-            <View style={styles.section}>
-              <View style={[styles.contractInfo, { backgroundColor: '#E0F2FE' }]}>
-                <ActivityIndicator size="small" color="#0284C7" />
-                <Text style={[styles.contractInfoText, { color: '#075985' }]}>
-                  Đang tìm hợp đồng...
-                </Text>
-              </View>
-            </View>
-          ) : booking.status === 'pending' ? (
-            <View style={styles.section}>
-              <View style={[styles.contractInfo, { backgroundColor: '#FEF3C7' }]}>
-                <FileText size={20} color="#F59E0B" />
-                <Text style={[styles.contractInfoText, { color: '#92400E' }]}>
-                  Hợp đồng sẽ có sau khi đơn được xác nhận
-                </Text>
-              </View>
-            </View>
-          ) : ['confirmed', 'active', 'completed'].includes(booking.status) ? (
-            <View style={styles.section}>
-              <View style={[styles.contractInfo, { backgroundColor: '#FEF3C7' }]}>
-                <AlertCircle size={20} color="#F59E0B" />
-                <Text style={[styles.contractInfoText, { color: '#92400E' }]}>
-                  Hợp đồng đang được xử lý, vui lòng thử lại sau
-                </Text>
-              </View>
-              {/* Test button - Remove this later */}
-              <TouchableOpacity
-                style={[styles.contractButton, { backgroundColor: '#6366F1', marginTop: 12 }]}
-                onPress={() => {
-                  Alert.alert(
-                    'Test xem PDF',
-                    'Sẽ mở PDF mẫu từ hệ thống',
-                    [
-                      { text: 'Hủy', style: 'cancel' },
-                      {
-                        text: 'Xem',
-                        onPress: () => router.push({
-                          pathname: '/contract-view',
-                          params: { id: '68fde17bab91b59ebb0b8412', mode: 'pdf' }
-                        })
-                      }
-                    ]
-                  );
-                }}
-              >
-                <FileText size={20} color="#fff" />
-                <Text style={styles.contractButtonText}>🧪 Test xem PDF mẫu</Text>
-              </TouchableOpacity>
-            </View>
-          ) : null}
-
           {/* QR Code */}
           {booking.qr_code && booking.status !== 'cancelled' && (
             <View style={styles.qrSection}>
@@ -445,7 +430,10 @@ export default function BookingDetailsScreen() {
 
           {/* Vehicle Info */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Thông tin xe</Text>
+            <View style={styles.sectionTitleRow}>
+              <Bike size={20} color={colors.primary} />
+              <Text style={styles.sectionTitle}>Thông tin xe</Text>
+            </View>
             <View style={styles.vehicleCard}>
               {booking.vehicle_id.images && booking.vehicle_id.images.length > 0 && (
                 <Image
@@ -455,9 +443,12 @@ export default function BookingDetailsScreen() {
                 />
               )}
               <View style={styles.vehicleInfo}>
-                <Text style={styles.vehicleName}>
-                  {booking.vehicle_id.brand} {booking.vehicle_id.model}
-                </Text>
+                <View style={styles.vehicleNameRow}>
+                  <Bike size={18} color={colors.primary} />
+                  <Text style={styles.vehicleName}>
+                    {booking.vehicle_id.brand} {booking.vehicle_id.model}
+                  </Text>
+                </View>
                 <Text style={styles.vehicleDetail}>
                   Biển số: {booking.vehicle_id.license_plate}
                 </Text>
@@ -557,11 +548,128 @@ export default function BookingDetailsScreen() {
               <View style={[styles.priceRow, styles.totalRow]}>
                 <Text style={styles.totalLabel}>Tổng cộng:</Text>
                 <Text style={[styles.totalValue, { color: colors.primary }]}>
-                  {formatPrice(booking.total_price)}
+                  {formatPrice(getTotalPrice())}
                 </Text>
               </View>
             </View>
           </View>
+
+          {/* Payments Details */}
+          {booking.payments && booking.payments.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>💳 Lịch sử thanh toán</Text>
+              <View style={styles.paymentsCard}>
+                {booking.payments.map((payment, idx) => (
+                  <View key={payment._id || idx} style={styles.paymentRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.paymentMethod}>
+                        {payment.payment_method === 'vnpay' ? 'VNPay' : 
+                         payment.payment_method === 'cash' ? 'Tiền mặt' :
+                         payment.payment_method === 'momo' ? 'MoMo' : 
+                         payment.payment_method}
+                      </Text>
+                      <Text style={styles.paymentType}>
+                        {payment.payment_type === 'rental_fee' ? 'Tiền thuê xe' :
+                         payment.payment_type === 'additional_fee' ? 'Phí phát sinh' :
+                         payment.payment_type === 'deposit' ? 'Đặt cọc' :
+                         payment.payment_type}
+                      </Text>
+                    </View>
+                    <Text style={[
+                      styles.paymentAmount,
+                      { color: payment.status === 'completed' ? '#10B981' : '#F59E0B' }
+                    ]}>
+                      {formatPrice(payment.amount)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Contract Actions - Placed after Price Details */}
+          {contractId && ['confirmed', 'active', 'completed'].includes(booking.status) ? (
+            <View style={styles.section}>
+              <View style={styles.contractActions}>
+                <TouchableOpacity
+                  style={[styles.contractButton, { backgroundColor: colors.primary }]}
+                  onPress={() => router.push({
+                    pathname: '/contract-view',
+                    params: { id: contractId, mode: 'html' }
+                  })}
+                >
+                  <FileText size={20} color="#fff" />
+                  <Text style={styles.contractButtonText}>Xem hợp đồng</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.contractButton, { backgroundColor: '#10B981' }]}
+                  onPress={() => {
+                    if (rentalId) {
+                      router.push({
+                        pathname: '/rental-details',
+                        params: { id: rentalId }
+                      });
+                    } else {
+                      Alert.alert('Thông báo', 'Chưa có thông tin thuê xe. Bạn cần nhận xe trước.');
+                    }
+                  }}
+                >
+                  <Eye size={20} color="#fff" />
+                  <Text style={styles.contractButtonText}>Xem Chi tiết thuê xe</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : loadingContract ? (
+            <View style={styles.section}>
+              <View style={[styles.contractInfo, { backgroundColor: '#E0F2FE' }]}>
+                <ActivityIndicator size="small" color="#0284C7" />
+                <Text style={[styles.contractInfoText, { color: '#075985' }]}>
+                  Đang tìm hợp đồng...
+                </Text>
+              </View>
+            </View>
+          ) : booking.status === 'pending' ? (
+            <View style={styles.section}>
+              <View style={[styles.contractInfo, { backgroundColor: '#FEF3C7' }]}>
+                <FileText size={20} color="#F59E0B" />
+                <Text style={[styles.contractInfoText, { color: '#92400E' }]}>
+                  Hợp đồng sẽ có sau khi đơn được xác nhận
+                </Text>
+              </View>
+            </View>
+          ) : ['confirmed', 'active', 'completed'].includes(booking.status) ? (
+            <View style={styles.section}>
+              <View style={[styles.contractInfo, { backgroundColor: '#FEF3C7' }]}>
+                <AlertCircle size={20} color="#F59E0B" />
+                <Text style={[styles.contractInfoText, { color: '#92400E' }]}>
+                  Hợp đồng đang được xử lý, vui lòng thử lại sau
+                </Text>
+              </View>
+              {/* Test button - Remove this later */}
+              <TouchableOpacity
+                style={[styles.contractButton, { backgroundColor: '#6366F1', marginTop: 12 }]}
+                onPress={() => {
+                  Alert.alert(
+                    'Test xem PDF',
+                    'Sẽ mở PDF mẫu từ hệ thống',
+                    [
+                      { text: 'Hủy', style: 'cancel' },
+                      {
+                        text: 'Xem',
+                        onPress: () => router.push({
+                          pathname: '/contract-view',
+                          params: { id: '68fde17bab91b59ebb0b8412', mode: 'pdf' }
+                        })
+                      }
+                    ]
+                  );
+                }}
+              >
+                <FileText size={20} color="#fff" />
+                <Text style={styles.contractButtonText}>🧪 Test xem PDF mẫu</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
 
           {/* Notes */}
           {(booking.special_requests || booking.notes) && (
@@ -705,11 +813,16 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 20,
   },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 12,
   },
   vehicleCard: {
     backgroundColor: '#fff',
@@ -727,11 +840,16 @@ const styles = StyleSheet.create({
   vehicleInfo: {
     padding: 16,
   },
+  vehicleNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
   vehicleName: {
     fontSize: 18,
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 8,
   },
   vehicleDetail: {
     fontSize: 14,
@@ -828,6 +946,37 @@ const styles = StyleSheet.create({
   },
   totalValue: {
     fontSize: 20,
+    fontWeight: '700',
+  },
+  paymentsCard: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  paymentMethod: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  paymentType: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  paymentAmount: {
+    fontSize: 16,
     fontWeight: '700',
   },
   notesCard: {
