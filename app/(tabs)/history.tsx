@@ -5,78 +5,53 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  useColorScheme,
   Dimensions,
   SafeAreaView,
   Platform,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
-import { Calendar, MapPin, Clock, DollarSign, TrendingUp, Award, Target } from 'lucide-react-native';
+import { Calendar, MapPin, Clock, DollarSign, TrendingUp, Award, ChevronRight } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { router } from 'expo-router';
 import { useThemeStore } from '@/store/themeStore';
-import { useVehicleStore } from '@/store/vehicleStore';
+import { bookingAPI } from '@/api/bookingAPI';
 
-const { width, height } = Dimensions.get('window');
-const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+const { width } = Dimensions.get('window');
 
 export default function HistoryScreen() {
-  const colorScheme = useColorScheme();
   const { colors } = useThemeStore();
-  const { rentalHistory } = useVehicleStore();
-
-  // Safe icon wrappers - if an icon is undefined (bad import), fall back to a simple placeholder component
-  const SafeIcon = (Icon: any) => (props: any) => {
-    if (!Icon) return <View style={{ width: props.size || 20, height: props.size || 20 }} />;
-    return <Icon {...props} />;
-  };
-
-  const CalendarIcon = SafeIcon(Calendar);
-  const MapPinIcon = SafeIcon(MapPin);
-  const ClockIcon = SafeIcon(Clock);
-  const DollarSignIcon = SafeIcon(DollarSign);
-  const TrendingUpIcon = SafeIcon(TrendingUp);
-  const AwardIcon = SafeIcon(Award);
-  const TargetIcon = SafeIcon(Target);
-  const [VictoryModule, setVictoryModule] = useState<any | null>(null);
+  
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    let mounted = true;
-    // try to require victory-native at runtime; if not installed, set null
-    try {
-      // @ts-ignore - require is used to avoid dynamic import TypeScript issues
-      const mod = require('victory-native');
-      if (mounted) setVictoryModule(mod);
-    } catch (e) {
-      if (mounted) setVictoryModule(null);
-    }
-    return () => {
-      mounted = false;
-    };
+    loadBookings();
   }, []);
 
+  const loadBookings = async () => {
+    try {
+      setLoading(true);
+      const response = await bookingAPI.getBookings({ page: 1, limit: 10 });
+      setBookings(response.bookings || []);
+    } catch (error) {
+      console.error('Error loading bookings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadBookings();
+    setRefreshing(false);
+  };
+
   // Mock analytics data
-  const monthlyData = [
-    { month: 'T1', cost: 850000 },
-    { month: 'T2', cost: 1200000 },
-    { month: 'T3', cost: 950000 },
-    { month: 'T4', cost: 1400000 },
-    { month: 'T5', cost: 1100000 },
-    { month: 'T6', cost: 1600000 },
-  ];
-
-  const hourlyData = [
-    { hour: '6-8h', count: 5 },
-    { hour: '8-10h', count: 12 },
-    { hour: '10-12h', count: 8 },
-    { hour: '12-14h', count: 6 },
-    { hour: '14-16h', count: 9 },
-    { hour: '16-18h', count: 15 },
-    { hour: '18-20h', count: 11 },
-  ];
-
-  const totalSpent = monthlyData.reduce((sum, item) => sum + item.cost, 0);
-  const totalTrips = rentalHistory.length + 15; // Add some mock data
+  const totalSpent = 7100000;
+  const totalTrips = bookings.length || 15;
   const averageDistance = 32;
-  const favoriteTime = '8-9h sáng';
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -97,14 +72,48 @@ export default function HistoryScreen() {
     });
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return '#F59E0B';
+      case 'confirmed':
+        return '#3B82F6';
+      case 'active':
+        return colors.primary;
+      case 'completed':
+        return '#10B981';
+      case 'cancelled':
+        return '#EF4444';
+      default:
+        return colors.textSecondary;
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'Chờ xác nhận';
+      case 'confirmed':
+        return 'Đã xác nhận';
+      case 'active':
+        return 'Đang thuê';
+      case 'completed':
+        return 'Hoàn thành';
+      case 'cancelled':
+        return 'Đã hủy';
+      default:
+        return status;
+    }
+  };
+
   const styles = StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: colors.background,
     },
     header: {
-      paddingTop: Platform.OS === 'android' ? 20 : 8,
-      paddingHorizontal: 2,
+      paddingTop: Platform.OS === 'android' ? 70 : 58,
+      paddingHorizontal: 20,
       paddingBottom: 12,
       backgroundColor: colors.surface,
     },
@@ -127,6 +136,7 @@ export default function HistoryScreen() {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: 12,
+      marginTop: 50,
       marginBottom: 24,
     },
     statCard: {
@@ -175,10 +185,6 @@ export default function HistoryScreen() {
       marginBottom: 16,
       fontFamily: 'Inter-Medium',
     },
-    chartContainer: {
-      alignItems: 'center',
-      marginVertical: 6,
-    },
     tripCard: {
       backgroundColor: colors.background,
       borderRadius: 12,
@@ -224,32 +230,19 @@ export default function HistoryScreen() {
       fontSize: 16,
       fontWeight: 'bold',
       color: colors.primary,
-      textAlign: 'right',
       fontFamily: 'Inter-Bold',
     },
-    insightsCard: {
-      backgroundColor: colors.primary + '10',
-      borderRadius: 12,
-      padding: 16,
-      marginBottom: 12,
-      borderWidth: 1,
-      borderColor: colors.primary + '30',
-    },
-    insightText: {
-      fontSize: 14,
+    tripCode: {
+      fontSize: 13,
+      fontWeight: '700',
       color: colors.text,
-      lineHeight: 20,
-      fontFamily: 'Inter-Regular',
+      fontFamily: 'Inter-Bold',
     },
-    seeAllButton: {
+    tripFooter: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
       marginTop: 8,
-      alignSelf: 'center',
-    },
-    seeAllText: {
-      fontSize: 14,
-      color: colors.primary,
-      fontWeight: '600',
-      fontFamily: 'Inter-Medium',
     },
   });
 
@@ -260,7 +253,13 @@ export default function HistoryScreen() {
           <Text style={styles.subtitle}>Theo dõi hành trình thuê xe của bạn</Text>
         </Animated.View>
 
-  <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 4 }} showsVerticalScrollIndicator={false}>
+  <ScrollView 
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 4 }} 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />
+          }
+        >
         {/* Stats Overview */}
         <Animated.View entering={FadeInDown.delay(200)} style={styles.statsGrid}>
           <View style={styles.statCard}>
@@ -296,141 +295,66 @@ export default function HistoryScreen() {
           </View>
         </Animated.View>
 
-        {/* Monthly Spending Chart */}
+        {/* Recent Bookings */}
         <Animated.View entering={FadeInDown.delay(300)} style={styles.section}>
-          <Text style={styles.sectionTitle}>Chi phí theo tháng</Text>
-          <View style={styles.chartContainer}>
-            {(() => {
-              const hasVictory = VictoryModule && VictoryModule.VictoryChart && VictoryModule.VictoryArea && VictoryModule.VictoryAxis && VictoryModule.VictoryTheme;
-              if (hasVictory) {
-                const V = VictoryModule;
-                return (
-                  <V.VictoryChart
-                    theme={V.VictoryTheme?.material}
-                      width={width - 8}
-                      height={Math.round(height * 0.32)}
-                    padding={{ left: 56, top: 12, right: 20, bottom: 32 }}
-                  >
-                    <V.VictoryAxis dependentAxis tickFormat={(x: number) => `${x/1000}k`} />
-                    <V.VictoryAxis />
-                    <V.VictoryArea
-                      data={monthlyData}
-                      x="month"
-                      y="cost"
-                      style={{
-                        data: { fill: colors.primary + '40', stroke: colors.primary, strokeWidth: 2 },
-                      }}
-                    />
-                  </V.VictoryChart>
-                );
-              }
-                return (
-                <View style={{ width: width - 8, height: 240, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-                  <Text style={{ color: colors.textSecondary }}>Charts unavailable — install 'victory-native' to view analytics.</Text>
+          <Text style={styles.sectionTitle}>Đặt xe gần đây</Text>
+          
+          {loading ? (
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 20 }} />
+          ) : bookings.length > 0 ? (
+            bookings.map((booking, index) => (
+              <TouchableOpacity
+                key={booking._id}
+                style={styles.tripCard}
+                onPress={() => router.push({
+                  pathname: '/booking-details',
+                  params: { id: booking._id }
+                })}
+                activeOpacity={0.7}
+              >
+                <View style={styles.tripHeader}>
+                  <Text style={styles.tripVehicle}>
+                    {booking.vehicle_id?.brand} {booking.vehicle_id?.model}
+                  </Text>
+                  <Text style={[styles.tripStatus, { 
+                    color: getStatusColor(booking.status),
+                    backgroundColor: getStatusColor(booking.status) + '20'
+                  }]}>
+                    {getStatusText(booking.status)}
+                  </Text>
                 </View>
-              );
-            })()}
-          </View>
-        </Animated.View>
-
-        {/* Hourly Usage Chart */}
-        <Animated.View entering={FadeInDown.delay(400)} style={styles.section}>
-          <Text style={styles.sectionTitle}>Thời gian thuê xe phổ biến</Text>
-          <View style={styles.chartContainer}>
-            {(() => {
-              const hasVictoryBar = VictoryModule && VictoryModule.VictoryChart && VictoryModule.VictoryBar && VictoryModule.VictoryAxis && VictoryModule.VictoryTheme;
-              if (hasVictoryBar) {
-                const V = VictoryModule;
-                return (
-                  <V.VictoryChart
-                    theme={V.VictoryTheme?.material}
-                      width={width - 8}
-                      height={Math.round(height * 0.32)}
-                      domainPadding={6}
-                      padding={{ left: 48, top: 12, right: 20, bottom: 44 }}
-                  >
-                    <V.VictoryAxis dependentAxis />
-                    <V.VictoryAxis style={{ tickLabels: { angle: -45 } }} />
-                    <V.VictoryBar
-                      data={hourlyData}
-                      x="hour"
-                      y="count"
-                      style={{
-                        data: { fill: colors.secondary },
-                      }}
-                    />
-                  </V.VictoryChart>
-                );
-              }
-              return (
-                <View style={{ width: width - 8, height: 240, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background, borderRadius: 8, borderWidth: 1, borderColor: colors.border }}>
-                  <Text style={{ color: colors.textSecondary }}>Charts unavailable — install 'victory-native' to view analytics.</Text>
+                
+                <View style={styles.tripInfo}>
+                  <Text style={styles.tripCode}>Mã: {booking.code}</Text>
                 </View>
-              );
-            })()}
-          </View>
-        </Animated.View>
-
-        {/* Personal Insights */}
-        <Animated.View entering={FadeInDown.delay(500)} style={styles.section}>
-          <Text style={styles.sectionTitle}>Insights cá nhân</Text>
-          
-          <View style={styles.insightsCard}>
-            <Text style={styles.insightText}>
-              💡 Bạn hay thuê xe nhiều nhất vào khung giờ {favoriteTime}. Đây là thời điểm có nhiều ưu đãi!
-            </Text>
-          </View>
-          
-          <View style={styles.insightsCard}>
-            <Text style={styles.insightText}>
-              🚗 Bạn đã tiết kiệm được khoảng 150kg CO2 so với sử dụng xe xăng trong 6 tháng qua.
-            </Text>
-          </View>
-          
-          <View style={styles.insightsCard}>
-            <Text style={styles.insightText}>
-              📈 Chi tiêu của bạn tăng 12% so với tháng trước. Hãy thử sử dụng xe vào giờ thấp điểm để tiết kiệm.
-            </Text>
-          </View>
-        </Animated.View>
-
-        {/* Recent Trips */}
-        <Animated.View entering={FadeInDown.delay(600)} style={styles.section}>
-          <Text style={styles.sectionTitle}>Chuyến đi gần đây</Text>
-          
-          {rentalHistory.map((rental, index) => (
-            <View key={rental.id} style={styles.tripCard}>
-              <View style={styles.tripHeader}>
-                <Text style={styles.tripVehicle}>{rental.vehicle.name}</Text>
-                <Text style={styles.tripStatus}>Hoàn thành</Text>
-              </View>
-              
-              <View style={styles.tripInfo}>
-                <Calendar size={14} color={colors.textSecondary} />
-                <Text style={styles.tripInfoText}>
-                  {formatDate(rental.startDate)} • {formatTime(rental.startDate)}
-                </Text>
-              </View>
-              
-              <View style={styles.tripInfo}>
-                <MapPin size={14} color={colors.textSecondary} />
-                <Text style={styles.tripInfoText}>
-                  {rental.pickupLocation} → {rental.returnLocation}
-                </Text>
-              </View>
-              
-              <View style={styles.tripInfo}>
-                <Clock size={14} color={colors.textSecondary} />
-                <Text style={styles.tripInfoText}>{rental.distance} km</Text>
-              </View>
-              
-              <Text style={styles.tripCost}>{formatPrice(rental.totalCost)}</Text>
+                
+                <View style={styles.tripInfo}>
+                  <Calendar size={14} color={colors.textSecondary} />
+                  <Text style={styles.tripInfoText}>
+                    {booking.start_date} • {booking.pickup_time}
+                  </Text>
+                </View>
+                
+                <View style={styles.tripInfo}>
+                  <MapPin size={14} color={colors.textSecondary} />
+                  <Text style={styles.tripInfoText}>
+                    {booking.station_id?.name}
+                  </Text>
+                </View>
+                
+                <View style={styles.tripFooter}>
+                  <Text style={styles.tripCost}>{formatPrice(booking.total_price)}</Text>
+                  <ChevronRight size={20} color={colors.textSecondary} />
+                </View>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={{ padding: 20, alignItems: 'center' }}>
+              <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>
+                Chưa có đơn đặt xe nào
+              </Text>
             </View>
-          ))}
-          
-          <TouchableOpacity style={styles.seeAllButton}>
-            <Text style={styles.seeAllText}>Xem tất cả lịch sử</Text>
-          </TouchableOpacity>
+          )}
         </Animated.View>
       </ScrollView>
       </SafeAreaView>

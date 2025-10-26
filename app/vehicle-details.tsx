@@ -337,8 +337,27 @@ export default function VehicleDetailsScreen() {
         <TouchableOpacity
           style={[styles.rentButton, { backgroundColor: colors.primary }]}
           onPress={() => {
-            // Navigate to booking/rental screen
-            Alert.alert('Thuê xe', 'Chức năng thuê xe đang được phát triển');
+            // Navigate to booking screen with vehicle info
+            const selectedColor = vehicle.available_colors?.[selectedColorIndex];
+            const stationInfo = selectedColor?.stations?.[0] || vehicle.current_color_info?.station;
+            
+            if (!stationInfo) {
+              Alert.alert('Lỗi', 'Không tìm thấy thông tin trạm');
+              return;
+            }
+
+            router.push({
+              pathname: '/booking',
+              params: {
+                brand: vehicle.brand,
+                model: vehicle.model,
+                color: selectedColor?.color || vehicle.color || '',
+                stationId: stationInfo._id,
+                stationName: stationInfo.name,
+                pricePerDay: (selectedColor?.price_per_day || vehicle.price_per_day || 0).toString(),
+                depositPercentage: (selectedColor?.deposit_percentage || vehicle.deposit_percentage || 0).toString(),
+              }
+            });
           }}
         >
           <Text style={styles.rentButtonText}>Thuê xe ngay</Text>
