@@ -23,10 +23,13 @@ import {
   XCircle,
   AlertCircle,
   Loader,
+  Eye,
+  Download,
 } from 'lucide-react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { useThemeStore } from '@/store/themeStore';
 import { bookingAPI } from '@/api/bookingAPI';
+import { contractAPI } from '@/api/contractAPI';
 
 interface BookingDetail {
   _id: string;
@@ -78,6 +81,7 @@ interface BookingDetail {
   qr_code?: string;
   qr_expires_at?: string;
   qr_used_at?: string;
+  contract_id?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -91,6 +95,8 @@ export default function BookingDetailsScreen() {
   const [canCancel, setCanCancel] = useState(false);
   const [loading, setLoading] = useState(true);
   const [canceling, setCanceling] = useState(false);
+  const [contractId, setContractId] = useState<string | null>(null);
+  const [loadingContract, setLoadingContract] = useState(false);
 
   useEffect(() => {
     loadBookingDetails();
@@ -103,15 +109,78 @@ export default function BookingDetailsScreen() {
       setBooking(response.booking);
       setCanCancel(response.canCancel || false);
       console.log('Booking details:', response);
-      console.log('Deposit amount from API:', response.booking.deposit_amount);
-      console.log('Total days:', response.booking.total_days);
-      console.log('Total price:', response.booking.total_price);
+      console.log('Contract ID from booking:', response.booking.contract_id);
+      console.log('Booking status:', response.booking.status);
+      
+      // If booking has contract_id, use it
+      if (response.booking.contract_id) {
+        setContractId(response.booking.contract_id);
+      } else {
+        // Otherwise, try to find contract - pass booking data directly
+        loadContractByBookingData(response.booking);
+      }
     } catch (error) {
       console.error('Error loading booking details:', error);
       Alert.alert('Lỗi', 'Không thể tải thông tin đặt xe');
       router.back();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadContractByBookingData = async (bookingData: any) => {
+    try {
+      setLoadingContract(true);
+      
+      // Get all contracts and find by customer + vehicle + station
+      const response = await contractAPI.getContracts({ limit: 100 });
+      console.log('🔍 Searching contract for booking:', bookingData.code);
+      console.log('Total contracts:', response.data?.contracts?.length || 0);
+      
+      if (response.data?.contracts && response.data.contracts.length > 0) {
+        const userId = bookingData.user_id?._id || bookingData.user_id;
+        const vehicleId = bookingData.vehicle_id?._id || bookingData.vehicle_id;
+        const stationId = bookingData.station_id?._id || bookingData.station_id;
+        
+        console.log('🔎 Looking for contract with:');
+        console.log('  - Customer ID:', userId);
+        console.log('  - Vehicle ID:', vehicleId);
+        console.log('  - Station ID:', stationId);
+        
+        // Find contract matching customer, vehicle, and station
+        const matchingContract = response.data.contracts.find(
+          (contract: any) => {
+            const matchCustomer = contract.customer?._id === userId;
+            const matchVehicle = contract.vehicle?._id === vehicleId;
+            const matchStation = contract.station?._id === stationId;
+            
+            console.log(`Checking contract ${contract.code}:`, {
+              matchCustomer,
+              matchVehicle,
+              matchStation,
+              contractCustomer: contract.customer?._id,
+              contractVehicle: contract.vehicle?._id,
+              contractStation: contract.station?._id,
+            });
+            
+            return matchCustomer && matchVehicle && matchStation;
+          }
+        );
+        
+        if (matchingContract) {
+          setContractId(matchingContract._id);
+          console.log('✅ Found contract!');
+          console.log('  - Contract ID:', matchingContract._id);
+          console.log('  - Contract Code:', matchingContract.code);
+          console.log('  - Status:', matchingContract.status);
+        } else {
+          console.log('❌ No matching contract found');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error loading contract:', error);
+    } finally {
+      setLoadingContract(false);
     }
   };
 
@@ -275,6 +344,85 @@ export default function BookingDetailsScreen() {
               </Text>
             </View>
           </View>
+
+          {/* Contract Actions - Placed prominently */}
+          {contractId && ['confirmed', 'active', 'completed'].includes(booking.status) ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>📄 Hợp đồng thuê xe</Text>
+              <View style={styles.contractActions}>
+                <TouchableOpacity
+                  style={[styles.contractButton, { backgroundColor: colors.primary }]}
+                  onPress={() => router.push({
+                    pathname: '/contract-view',
+                    params: { id: contractId, mode: 'html' }
+                  })}
+                >
+                  <Eye size={20} color="#fff" />
+                  <Text style={styles.contractButtonText}>Xem hợp đồng</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.contractButton, { backgroundColor: '#10B981' }]}
+                  onPress={() => router.push({
+                    pathname: '/contract-view',
+                    params: { id: contractId, mode: 'pdf' }
+                  })}
+                >
+                  <Download size={20} color="#fff" />
+                  <Text style={styles.contractButtonText}>Tải PDF</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : loadingContract ? (
+            <View style={styles.section}>
+              <View style={[styles.contractInfo, { backgroundColor: '#E0F2FE' }]}>
+                <ActivityIndicator size="small" color="#0284C7" />
+                <Text style={[styles.contractInfoText, { color: '#075985' }]}>
+                  Đang tìm hợp đồng...
+                </Text>
+              </View>
+            </View>
+          ) : booking.status === 'pending' ? (
+            <View style={styles.section}>
+              <View style={[styles.contractInfo, { backgroundColor: '#FEF3C7' }]}>
+                <FileText size={20} color="#F59E0B" />
+                <Text style={[styles.contractInfoText, { color: '#92400E' }]}>
+                  Hợp đồng sẽ có sau khi đơn được xác nhận
+                </Text>
+              </View>
+            </View>
+          ) : ['confirmed', 'active', 'completed'].includes(booking.status) ? (
+            <View style={styles.section}>
+              <View style={[styles.contractInfo, { backgroundColor: '#FEF3C7' }]}>
+                <AlertCircle size={20} color="#F59E0B" />
+                <Text style={[styles.contractInfoText, { color: '#92400E' }]}>
+                  Hợp đồng đang được xử lý, vui lòng thử lại sau
+                </Text>
+              </View>
+              {/* Test button - Remove this later */}
+              <TouchableOpacity
+                style={[styles.contractButton, { backgroundColor: '#6366F1', marginTop: 12 }]}
+                onPress={() => {
+                  Alert.alert(
+                    'Test xem PDF',
+                    'Sẽ mở PDF mẫu từ hệ thống',
+                    [
+                      { text: 'Hủy', style: 'cancel' },
+                      {
+                        text: 'Xem',
+                        onPress: () => router.push({
+                          pathname: '/contract-view',
+                          params: { id: '68fde17bab91b59ebb0b8412', mode: 'pdf' }
+                        })
+                      }
+                    ]
+                  );
+                }}
+              >
+                <FileText size={20} color="#fff" />
+                <Text style={styles.contractButtonText}>🧪 Test xem PDF mẫu</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
 
           {/* QR Code */}
           {booking.qr_code && booking.status !== 'cancelled' && (
@@ -714,6 +862,37 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '700',
+  },
+  contractActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  contractButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  contractButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  contractInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+  },
+  contractInfoText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
 
