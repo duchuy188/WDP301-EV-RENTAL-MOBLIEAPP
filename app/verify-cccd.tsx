@@ -189,11 +189,16 @@ export default function VerifyCCCDScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [16, 10],
-      quality: 0.8,
+      quality: 0.6, // Reduced quality for faster upload
     });
 
     if (!result.canceled && result.assets[0]) {
-      await processImageWithOCR(result.assets[0].uri, side);
+      // Chỉ lưu ảnh local, không gọi API ngay
+      if (side === 'front') {
+        setFrontImage(result.assets[0].uri);
+      } else {
+        setBackImage(result.assets[0].uri);
+      }
     }
   };
 
@@ -207,11 +212,16 @@ export default function VerifyCCCDScreen() {
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [16, 10],
-      quality: 0.8,
+      quality: 0.6, // Reduced quality for faster upload
     });
 
     if (!result.canceled && result.assets[0]) {
-      await processImageWithOCR(result.assets[0].uri, side);
+      // Chỉ lưu ảnh local, không gọi API ngay
+      if (side === 'front') {
+        setFrontImage(result.assets[0].uri);
+      } else {
+        setBackImage(result.assets[0].uri);
+      }
     }
   };
 
@@ -249,6 +259,89 @@ export default function VerifyCCCDScreen() {
     return formatted;
   };
 
+  const handleSubmit = async () => {
+    if (!frontImage || !backImage) {
+      Alert.alert(
+        'Thiếu thông tin',
+        'Vui lòng upload đầy đủ ảnh mặt trước và mặt sau CCCD'
+      );
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Prepare front image file
+      const frontImageFile = {
+        uri: frontImage,
+        name: 'cccd_front.jpg',
+        type: 'image/jpeg',
+      };
+
+      // Prepare back image file
+      const backImageFile = {
+        uri: backImage,
+        name: 'cccd_back.jpg',
+        type: 'image/jpeg',
+      };
+
+      // Call API to upload front image
+      console.log('📤 Uploading front image...');
+      const frontResponse = await kycAPI.uploadIdentityCardFront(frontImageFile);
+      console.log('✅ Front image uploaded:', frontResponse);
+
+      // Call API to upload back image
+      console.log('📤 Uploading back image...');
+      const backResponse = await kycAPI.uploadIdentityCardBack(backImageFile);
+      console.log('✅ Back image uploaded:', backResponse);
+
+      // Auto-fill form with OCR data from response if available
+      if (frontResponse.identityCard) {
+        const { id, name, dob } = frontResponse.identityCard;
+        if (id) setIdNumber(id);
+        if (name) setFullName(name);
+        if (dob) setDateOfBirth(dob);
+      }
+
+      // Get KYC status after upload
+      try {
+        const statusResponse = await kycAPI.getKYCStatus();
+        console.log('📋 KYC Status:', statusResponse);
+        setKycStatus(statusResponse.kycStatus || 'pending');
+      } catch (statusError) {
+        console.log('⚠️ Không lấy được status:', statusError);
+      }
+
+      // Show success message
+      Alert.alert(
+        'Thành công',
+        'Hồ sơ CCCD của bạn đã được nộp thành công!',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.back()
+          }
+        ]
+      );
+    } catch (error: any) {
+      console.log('❌ Lỗi khi upload CCCD:', error);
+      
+      if (error.message === 'Network Error' || error.message?.includes('Network')) {
+        Alert.alert(
+          'Không thể kết nối', 
+          'Vui lòng kiểm tra kết nối mạng và thử lại',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Lỗi', 
+          'Có lỗi xảy ra khi nộp hồ sơ. Vui lòng thử lại.',
+          [{ text: 'OK' }]
+        );
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const styles = StyleSheet.create({
     container: {
@@ -565,7 +658,10 @@ export default function VerifyCCCDScreen() {
           </View>
         </View>
 
-        <View style={styles.inputGroup}>
+        {/* Hiển thị thông tin chi tiết chỉ khi đã xác minh thành công */}
+        {(frontImage || backImage) && (kycStatus === 'verified' || kycStatus === 'approved') && (
+          <>
+            <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Số CCCD</Text>
           <TextInput
             style={styles.input}
@@ -706,6 +802,22 @@ export default function VerifyCCCDScreen() {
             editable={false}
           />
         </View>
+          </>
+        )}
+
+        {/* Submit Button - Ẩn khi đã xác minh hoặc đang xem ảnh */}
+        {!modalVisible && kycStatus !== 'verified' && kycStatus !== 'approved' && (
+          <TouchableOpacity 
+            style={[
+              styles.submitButton,
+              (!frontImage || !backImage) && styles.submitButtonDisabled
+            ]}
+            onPress={handleSubmit}
+            disabled={!frontImage || !backImage}
+          >
+            <Text style={styles.submitButtonText}>Nộp hồ sơ</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {/* Loading Overlay for OCR Processing */}

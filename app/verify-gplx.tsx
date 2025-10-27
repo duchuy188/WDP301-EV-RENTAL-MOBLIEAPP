@@ -39,6 +39,7 @@ export default function VerifyGPLXScreen() {
   const [licenseClass, setLicenseClass] = useState('');
   const [classList, setClassList] = useState<string[]>([]);
   const [expiryText, setExpiryText] = useState('');
+  const [kycStatus, setKycStatus] = useState<string>('');
   
   // Modal states
   const [modalVisible, setModalVisible] = useState(false);
@@ -114,6 +115,14 @@ export default function VerifyGPLXScreen() {
       } else {
         console.log('⚠️ Không có dữ liệu driverLicense trong response');
       }
+      
+      // Lấy status từ API status
+      try {
+        const statusResponse: any = await kycAPI.getKYCStatus();
+        setKycStatus(statusResponse.status || statusResponse.kycStatus || 'not_submitted');
+      } catch (statusError) {
+        console.log('⚠️ Lỗi khi lấy status:', statusError);
+      }
     } catch (error: any) {
       console.log('❌ LỖI khi load GPLX:', error);
       console.log('❌ Error message:', error.message);
@@ -183,11 +192,16 @@ export default function VerifyGPLXScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [16, 10],
-      quality: 0.8,
+      quality: 0.6, // Reduced quality for faster upload
     });
 
     if (!result.canceled && result.assets[0]) {
-      await processImageWithOCR(result.assets[0].uri, side);
+      // Chỉ lưu ảnh local, không gọi API ngay
+      if (side === 'front') {
+        setFrontImage(result.assets[0].uri);
+      } else {
+        setBackImage(result.assets[0].uri);
+      }
     }
   };
 
@@ -201,11 +215,16 @@ export default function VerifyGPLXScreen() {
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [16, 10],
-      quality: 0.8,
+      quality: 0.6, // Reduced quality for faster upload
     });
 
     if (!result.canceled && result.assets[0]) {
-      await processImageWithOCR(result.assets[0].uri, side);
+      // Chỉ lưu ảnh local, không gọi API ngay
+      if (side === 'front') {
+        setFrontImage(result.assets[0].uri);
+      } else {
+        setBackImage(result.assets[0].uri);
+      }
     }
   };
 
@@ -243,6 +262,98 @@ export default function VerifyGPLXScreen() {
     return formatted;
   };
 
+  const handleSubmit = async () => {
+    if (!frontImage || !backImage) {
+      Alert.alert(
+        'Thiếu thông tin',
+        'Vui lòng upload đầy đủ ảnh mặt trước và mặt sau GPLX'
+      );
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const fileName = frontImage.split('/').pop() || `license_front_${Date.now()}.jpg`;
+      const fileType = fileName.endsWith('.png') ? 'image/png' : 'image/jpeg';
+
+      // Prepare front image file
+      const frontImageFile = {
+        uri: frontImage,
+        name: fileName,
+        type: fileType,
+      };
+
+      const backFileName = backImage.split('/').pop() || `license_back_${Date.now()}.jpg`;
+      const backFileType = backFileName.endsWith('.png') ? 'image/png' : 'image/jpeg';
+
+      // Prepare back image file
+      const backImageFile = {
+        uri: backImage,
+        name: backFileName,
+        type: backFileType,
+      };
+
+      // Call API to upload front image
+      console.log('📤 Uploading GPLX front image...');
+      const frontResponse = await kycAPI.uploadLicenseFront(frontImageFile);
+      console.log('✅ GPLX front image uploaded:', frontResponse);
+
+      // Auto-fill form with OCR data from response if available
+      if (frontResponse.license?.id) {
+        setLicenseNumber(formatLicenseNumber(frontResponse.license.id));
+      }
+      if (frontResponse.license?.name) {
+        setFullName(frontResponse.license.name);
+      }
+      if ((frontResponse.license as any)?.dob) {
+        setDateOfBirth(formatDate((frontResponse.license as any).dob));
+      }
+
+      // Call API to upload back image
+      console.log('📤 Uploading GPLX back image...');
+      const backResponse = await kycAPI.uploadLicenseBack(backImageFile);
+      console.log('✅ GPLX back image uploaded:', backResponse);
+
+      // Get KYC status after upload
+      try {
+        const statusResponse = await kycAPI.getKYCStatus();
+        console.log('📋 KYC Status:', statusResponse);
+        setKycStatus(statusResponse.kycStatus || 'pending');
+      } catch (statusError) {
+        console.log('⚠️ Không lấy được status:', statusError);
+      }
+
+      // Show success message
+      Alert.alert(
+        'Thành công',
+        'Hồ sơ GPLX của bạn đã được nộp thành công!',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.back()
+          }
+        ]
+      );
+    } catch (error: any) {
+      console.log('❌ Lỗi khi upload GPLX:', error);
+      
+      if (error.message === 'Network Error' || error.message?.includes('Network')) {
+        Alert.alert(
+          'Không thể kết nối', 
+          'Vui lòng kiểm tra kết nối mạng và thử lại',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Lỗi', 
+          'Có lỗi xảy ra khi nộp hồ sơ. Vui lòng thử lại.',
+          [{ text: 'OK' }]
+        );
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const styles = StyleSheet.create({
     container: {
@@ -583,7 +694,10 @@ export default function VerifyGPLXScreen() {
           </View>
         </View>
 
-        <View style={styles.section}>
+        {/* Hiển thị thông tin chi tiết chỉ khi đã xác minh thành công */}
+        {(frontImage || backImage) && (kycStatus === 'verified' || kycStatus === 'approved') && (
+          <>
+            <View style={styles.section}>
           <Text style={styles.sectionTitle}>Số giấy phép lái xe</Text>
           <Text style={styles.sectionSubtitle}>Dãy 12 chữ số ở mặt trước GPLX</Text>
 
@@ -715,7 +829,10 @@ export default function VerifyGPLXScreen() {
             editable={false}
           />
         </View>
+          </>
+        )}
 
+        {/* Link "Vì sao" luôn hiển thị */}
         <TouchableOpacity 
           style={styles.whyLink}
           onPress={() => {
@@ -728,6 +845,20 @@ export default function VerifyGPLXScreen() {
           <AlertCircle size={16} color={colors.text} />
           <Text style={styles.whyLinkText}>Vì sao tôi phải xác thực GPLX</Text>
         </TouchableOpacity>
+
+        {/* Submit Button - Ẩn khi đã xác minh hoặc đang xem ảnh */}
+        {!modalVisible && kycStatus !== 'verified' && kycStatus !== 'approved' && (
+          <TouchableOpacity 
+            style={[
+              styles.submitButton,
+              (!frontImage || !backImage) && styles.submitButtonDisabled
+            ]}
+            onPress={handleSubmit}
+            disabled={!frontImage || !backImage}
+          >
+            <Text style={styles.submitButtonText}>Nộp hồ sơ</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
 
       {/* Loading Overlay for OCR Processing */}

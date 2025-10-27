@@ -8,7 +8,7 @@ export const API_BASE_URL = 'http://192.168.102.8:5000/api';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000
+  timeout: 60000 // 60 seconds for image upload and OCR processing
 });
 
 // Request interceptor to add auth token
