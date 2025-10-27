@@ -8,6 +8,8 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { 
@@ -25,8 +27,8 @@ import {
   Loader,
   Eye,
   Download,
-  Bike,
 } from 'lucide-react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { useThemeStore } from '@/store/themeStore';
 import { bookingAPI } from '@/api/bookingAPI';
@@ -107,6 +109,9 @@ export default function BookingDetailsScreen() {
   const [contractId, setContractId] = useState<string | null>(null);
   const [loadingContract, setLoadingContract] = useState(false);
   const [rentalId, setRentalId] = useState<string | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [expandedNotes, setExpandedNotes] = useState(false);
 
   useEffect(() => {
     loadBookingDetails();
@@ -228,24 +233,20 @@ export default function BookingDetailsScreen() {
   };
 
   const handleCancelBooking = () => {
-    Alert.alert(
-      'Hủy đặt xe',
-      'Bạn có chắc chắn muốn hủy đặt xe này?',
-      [
-        { text: 'Không', style: 'cancel' },
-        {
-          text: 'Hủy đặt xe',
-          style: 'destructive',
-          onPress: confirmCancelBooking,
-        },
-      ]
-    );
+    setCancelReason('');
+    setShowCancelModal(true);
   };
 
   const confirmCancelBooking = async () => {
+    if (!cancelReason.trim()) {
+      Alert.alert('Thông báo', 'Vui lòng nhập lý do hủy');
+      return;
+    }
+
     try {
       setCanceling(true);
-      await bookingAPI.cancelBooking(bookingId, { reason: 'Khách hàng yêu cầu hủy' });
+      setShowCancelModal(false);
+      await bookingAPI.cancelBooking(bookingId, { reason: cancelReason.trim() });
       Alert.alert('Thành công', 'Đã hủy đặt xe thành công', [
         { text: 'OK', onPress: () => router.push('/(tabs)/history') },
       ]);
@@ -388,7 +389,7 @@ export default function BookingDetailsScreen() {
       <View style={[styles.header, { backgroundColor: colors.primary }]}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.push('/(tabs)/history')}
+          onPress={() => router.back()}
         >
           <ArrowLeft size={24} color="#fff" />
         </TouchableOpacity>
@@ -431,7 +432,7 @@ export default function BookingDetailsScreen() {
           {/* Vehicle Info */}
           <View style={styles.section}>
             <View style={styles.sectionTitleRow}>
-              <Bike size={20} color={colors.primary} />
+              <FontAwesome5 name="motorcycle" size={20} color={colors.primary} />
               <Text style={styles.sectionTitle}>Thông tin xe</Text>
             </View>
             <View style={styles.vehicleCard}>
@@ -444,7 +445,7 @@ export default function BookingDetailsScreen() {
               )}
               <View style={styles.vehicleInfo}>
                 <View style={styles.vehicleNameRow}>
-                  <Bike size={18} color={colors.primary} />
+                  <FontAwesome5 name="motorcycle" size={18} color={colors.primary} />
                   <Text style={styles.vehicleName}>
                     {booking.vehicle_id.brand} {booking.vehicle_id.model}
                   </Text>
@@ -679,13 +680,43 @@ export default function BookingDetailsScreen() {
                 {booking.special_requests && (
                   <View style={{ marginBottom: 12 }}>
                     <Text style={styles.notesLabel}>Yêu cầu đặc biệt:</Text>
-                    <Text style={styles.notesText}>{booking.special_requests}</Text>
+                    <Text 
+                      style={styles.notesText}
+                      numberOfLines={expandedNotes ? undefined : 3}
+                    >
+                      {booking.special_requests}
+                    </Text>
+                    {booking.special_requests.length > 100 && (
+                      <TouchableOpacity 
+                        onPress={() => setExpandedNotes(!expandedNotes)}
+                        style={{ marginTop: 4 }}
+                      >
+                        <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>
+                          {expandedNotes ? 'Thu gọn' : '...xem thêm'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
                 {booking.notes && (
                   <View>
                     <Text style={styles.notesLabel}>Ghi chú:</Text>
-                    <Text style={styles.notesText}>{booking.notes}</Text>
+                    <Text 
+                      style={styles.notesText}
+                      numberOfLines={expandedNotes ? undefined : 3}
+                    >
+                      {booking.notes}
+                    </Text>
+                    {booking.notes.length > 100 && (
+                      <TouchableOpacity 
+                        onPress={() => setExpandedNotes(!expandedNotes)}
+                        style={{ marginTop: 4 }}
+                      >
+                        <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>
+                          {expandedNotes ? 'Thu gọn' : '...xem thêm'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
               </View>
@@ -720,6 +751,56 @@ export default function BookingDetailsScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Cancel Reason Modal */}
+      <Modal
+        visible={showCancelModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCancelModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              Hủy đặt xe
+            </Text>
+            <Text style={[styles.modalDescription, { color: colors.textSecondary }]}>
+              Vui lòng cho biết lý do hủy đặt xe:
+            </Text>
+            
+            <TextInput
+              style={[styles.reasonInput, { 
+                color: colors.text, 
+                borderColor: colors.border,
+                backgroundColor: colors.background
+              }]}
+              placeholder="Nhập lý do hủy (bắt buộc)"
+              placeholderTextColor={colors.textSecondary}
+              value={cancelReason}
+              onChangeText={setCancelReason}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelModalButton]}
+                onPress={() => setShowCancelModal(false)}
+              >
+                <Text style={styles.cancelModalButtonText}>Không</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmModalButton]}
+                onPress={confirmCancelBooking}
+              >
+                <Text style={styles.confirmModalButtonText}>Hủy đặt xe</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -983,6 +1064,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
     padding: 16,
     borderRadius: 16,
+    flexShrink: 1,
   },
   notesLabel: {
     fontSize: 13,
@@ -994,6 +1076,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#111827',
     lineHeight: 20,
+    flexWrap: 'wrap',
   },
   bottomContainer: {
     padding: 20,
@@ -1042,6 +1125,70 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 16,
+    padding: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  modalDescription: {
+    fontSize: 14,
+    marginBottom: 20,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  reasonInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 15,
+    minHeight: 100,
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  cancelModalButton: {
+    backgroundColor: '#F3F4F6',
+  },
+  cancelModalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  confirmModalButton: {
+    backgroundColor: '#EF4444',
+  },
+  confirmModalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
 

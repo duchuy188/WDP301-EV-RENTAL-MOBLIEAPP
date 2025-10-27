@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { useColorScheme } from 'react-native';
-import { Chrome as Home, History, User, MessageCircle } from 'lucide-react-native';
+import { History, User, MessageCircle } from 'lucide-react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -52,7 +53,7 @@ export default function TabLayout() {
         options={{
           title: 'Đặt xe',
           tabBarIcon: ({ size, color }) => (
-            <Home size={size} color={color} />
+            <FontAwesome5 name="motorcycle" size={size} color={color} />
           ),
         }}
       />

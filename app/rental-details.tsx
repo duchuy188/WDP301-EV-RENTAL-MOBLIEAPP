@@ -25,7 +25,6 @@ import {
   AlertCircle,
   User,
   Car,
-  Bike,
   Gauge,
   Battery,
   Sparkles,
@@ -37,6 +36,7 @@ import {
   Eye,
   X,
 } from 'lucide-react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
 import { useThemeStore } from '@/store/themeStore';
 import { rentalAPI } from '@/api/rentalsAPI';
 import { feedbackAPI } from '@/api/feedbackAPI';
@@ -56,6 +56,8 @@ export default function RentalDetailsScreen() {
   const [existingFeedback, setExistingFeedback] = useState<Feedback | null>(null);
   const [loadingFeedback, setLoadingFeedback] = useState(false);
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
+  const [expandedBeforeNotes, setExpandedBeforeNotes] = useState(false);
+  const [expandedAfterNotes, setExpandedAfterNotes] = useState(false);
 
   useEffect(() => {
     loadRentalDetails();
@@ -274,7 +276,7 @@ export default function RentalDetailsScreen() {
 
               {/* Xe */}
               <View style={styles.infoRow}>
-                <Bike size={20} color={colors.primary} />
+                <FontAwesome5 name="motorcycle" size={20} color={colors.primary} />
                 <View style={{ marginLeft: 12, flex: 1 }}>
                   <Text style={styles.infoLabel}>Xe</Text>
                   <Text style={styles.infoValue}>
@@ -460,7 +462,7 @@ export default function RentalDetailsScreen() {
           {/* Tình trạng xe */}
           <View style={styles.section}>
             <View style={styles.sectionTitleRow}>
-              <Bike size={20} color={colors.primary} />
+              <FontAwesome5 name="motorcycle" size={20} color={colors.primary} />
               <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Tình trạng xe</Text>
             </View>
             <View style={styles.conditionContainer}>
@@ -495,9 +497,24 @@ export default function RentalDetailsScreen() {
                 
                 {/* Ghi chú lúc nhận */}
                 {rental.vehicle_condition_before?.notes && (
-                  <View style={[styles.notesCard, { backgroundColor: '#F9FAFB', marginTop: 12 }]}>
+                  <View style={[styles.notesCard, { backgroundColor: '#F9FAFB', marginTop: 12, width: '100%' }]}>
                     <Text style={styles.notesLabel}>Ghi chú:</Text>
-                    <Text style={styles.notesText}>{rental.vehicle_condition_before.notes}</Text>
+                    <Text 
+                      style={styles.notesText} 
+                      numberOfLines={expandedBeforeNotes ? undefined : 3}
+                    >
+                      {rental.vehicle_condition_before.notes}
+                    </Text>
+                    {rental.vehicle_condition_before.notes.length > 100 && (
+                      <TouchableOpacity 
+                        onPress={() => setExpandedBeforeNotes(!expandedBeforeNotes)}
+                        style={{ marginTop: 4 }}
+                      >
+                        <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>
+                          {expandedBeforeNotes ? 'Thu gọn' : '...xem thêm'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
                 
@@ -565,9 +582,24 @@ export default function RentalDetailsScreen() {
                 
                 {/* Ghi chú lúc trả */}
                 {rental.vehicle_condition_after?.notes && (
-                  <View style={[styles.notesCard, { backgroundColor: '#F9FAFB', marginTop: 12 }]}>
+                  <View style={[styles.notesCard, { backgroundColor: '#F9FAFB', marginTop: 12, width: '100%' }]}>
                     <Text style={styles.notesLabel}>Ghi chú:</Text>
-                    <Text style={styles.notesText}>{rental.vehicle_condition_after.notes}</Text>
+                    <Text 
+                      style={styles.notesText} 
+                      numberOfLines={expandedAfterNotes ? undefined : 3}
+                    >
+                      {rental.vehicle_condition_after.notes}
+                    </Text>
+                    {rental.vehicle_condition_after.notes.length > 100 && (
+                      <TouchableOpacity 
+                        onPress={() => setExpandedAfterNotes(!expandedAfterNotes)}
+                        style={{ marginTop: 4 }}
+                      >
+                        <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>
+                          {expandedAfterNotes ? 'Thu gọn' : '...xem thêm'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
                 
@@ -813,12 +845,15 @@ export default function RentalDetailsScreen() {
                               setFeedbackModalVisible(false);
                               setImageModalVisible(true);
                             }}
-                            style={{ marginRight: 8 }}
+                            style={styles.imageContainer}
                           >
                             <Image
                               source={{ uri: img }}
                               style={{ width: 100, height: 100, borderRadius: 8 }}
                             />
+                            <View style={styles.imageOverlay}>
+                              <Eye size={24} color="#fff" />
+                            </View>
                           </TouchableOpacity>
                         ))}
                       </ScrollView>
@@ -889,12 +924,15 @@ export default function RentalDetailsScreen() {
                               setFeedbackModalVisible(false);
                               setImageModalVisible(true);
                             }}
-                            style={{ marginRight: 8 }}
+                            style={styles.imageContainer}
                           >
                             <Image
                               source={{ uri: img }}
                               style={{ width: 100, height: 100, borderRadius: 8 }}
                             />
+                            <View style={styles.imageOverlay}>
+                              <Eye size={24} color="#fff" />
+                            </View>
                           </TouchableOpacity>
                         ))}
                       </ScrollView>
@@ -1187,6 +1225,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 3,
+    minWidth: 0,
   },
   conditionHeader: {
     flexDirection: 'row',
@@ -1227,6 +1266,7 @@ const styles = StyleSheet.create({
   notesCard: {
     padding: 12,
     borderRadius: 12,
+    flexShrink: 1,
   },
   notesLabel: {
     fontSize: 13,
@@ -1238,6 +1278,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#111827',
     lineHeight: 20,
+    flexWrap: 'wrap',
   },
   reviewButton: {
     flexDirection: 'row',

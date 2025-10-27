@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,35 +7,35 @@ import {
   TouchableOpacity,
   useColorScheme,
   Image,
-  Switch,
   Alert,
   Modal,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { 
-  Settings, 
   CreditCard, 
   CircleHelp as HelpCircle, 
   LogOut, 
   ChevronRight, 
-  Moon, 
-  Sun, 
-  Bell, 
   Shield, 
   Star, 
   Award, 
   Edit3,
   MapPin,
-  Trophy,
-  Gift,
   FileText,
   Camera,
-  Share2,
+  CheckCircle,
+  Key,
+  Flag,
+  XCircle,
 } from 'lucide-react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { useThemeStore } from '@/store/themeStore';
 import { useAuthStore } from '@/store/authStore';
+import { bookingAPI } from '@/api/bookingAPI';
+import { Booking } from '@/types/booking';
 
 const { width } = Dimensions.get('window');
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
@@ -44,8 +44,10 @@ export default function ProfileScreen() {
   const colorScheme = useColorScheme();
   const { colors, mode, setMode } = useThemeStore();
   const { user, logout } = useAuthStore();
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [recentBookings, setRecentBookings] = useState<Booking[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(true);
+  const [totalBookings, setTotalBookings] = useState(0);
 
   const userStats = {
     level: 'Eco Driver',
@@ -60,19 +62,176 @@ export default function ProfileScreen() {
     totalSavings: 850000,
   };
 
-  const achievements = [
-    { id: 1, title: 'Eco Warrior', description: 'Tiết kiệm 100kg CO2', icon: '🌱', unlocked: true },
-    { id: 2, title: 'Speed Demon', description: '50 chuyến đi', icon: '⚡', unlocked: false },
-    { id: 3, title: 'Night Rider', description: 'Thuê xe ban đêm 10 lần', icon: '🌙', unlocked: true },
-    { id: 4, title: 'Explorer', description: 'Thuê xe ở 5 quận khác nhau', icon: '🗺️', unlocked: true },
-  ];
 
-  const recentActivity = [
-    { id: 1, action: 'Thuê xe Tesla Model 3', time: '2 giờ trước', icon: '🚗' },
-    { id: 2, action: 'Đạt thành tích Eco Warrior', time: '1 ngày trước', icon: '🏆' },
-    { id: 3, action: 'Cập nhật thông tin cá nhân', time: '3 ngày trước', icon: '👤' },
-    { id: 4, action: 'Đánh giá 5 sao cho VinFast VF5', time: '1 tuần trước', icon: '⭐' },
-  ];
+  // Fetch recent bookings
+  useEffect(() => {
+    const fetchRecentBookings = async () => {
+      try {
+        setLoadingActivities(true);
+        const response = await bookingAPI.getBookings({ page: 1, limit: 5 });
+        setRecentBookings(response.bookings);
+        setTotalBookings(response.pagination.totalRecords);
+      } catch (error) {
+        console.error('❌ Error fetching recent bookings:', error);
+      } finally {
+        setLoadingActivities(false);
+      }
+    };
+
+    fetchRecentBookings();
+  }, []);
+
+  // Transform bookings to activity format
+  const getActivityFromBooking = (booking: Booking) => {
+    const statusMap: { [key: string]: { text: string; iconName: string; color: string; bgColor: string } } = {
+      'pending': { text: 'Đặt xe', iconName: 'motorcycle', color: colors.primary, bgColor: colors.primary + '15' },
+      'confirmed': { text: 'Xác nhận', iconName: 'check', color: '#10B981', bgColor: '#10B98115' },
+      'active': { text: 'Đang thuê', iconName: 'key', color: '#F59E0B', bgColor: '#F59E0B15' },
+      'completed': { text: 'Hoàn thành', iconName: 'flag', color: '#6366F1', bgColor: '#6366F115' },
+      'cancelled': { text: 'Đã hủy', iconName: 'x', color: '#EF4444', bgColor: '#EF444415' },
+    };
+
+    const statusInfo = statusMap[booking.status] || { text: 'Đặt xe', iconName: 'motorcycle', color: colors.primary, bgColor: colors.primary + '15' };
+    
+    // Lấy mã booking
+    const bookingCode = booking.code || booking._id?.slice(-6)?.toUpperCase() || 'N/A';
+    console.log('📝 Booking code:', { 
+      code: booking.code, 
+      id: booking._id, 
+      result: bookingCode 
+    });
+    
+    // Tên xe và model
+    const vehicleCode = booking.vehicle_id?.name || 'Xe máy';
+    const vehicleModel = booking.vehicle_id?.model 
+      ? `${booking.vehicle_id?.brand || ''} ${booking.vehicle_id?.model}`.trim() 
+      : null;
+    const stationName = booking.station_id?.name || 'Trạm thuê xe';
+    
+    // Use the most relevant date based on status
+    let dateToUse = booking.createdAt;
+    if (booking.status === 'cancelled' && booking.cancelled_at) {
+      dateToUse = booking.cancelled_at;
+    } else if (booking.status === 'confirmed' && booking.confirmed_at) {
+      dateToUse = booking.confirmed_at;
+    } else if (booking.updatedAt) {
+      dateToUse = booking.updatedAt;
+    }
+    
+    const formattedTime = formatDateTime(dateToUse);
+    
+    return {
+      id: booking._id,
+      bookingCode: bookingCode,
+      vehicleCode: vehicleCode,
+      vehicleModel: vehicleModel,
+      stationName: stationName,
+      price: booking.total_price,
+      statusText: statusInfo.text,
+      time: formattedTime,
+      iconName: statusInfo.iconName,
+      iconColor: statusInfo.color,
+      iconBgColor: statusInfo.bgColor,
+    };
+  };
+
+  // Parse date from DD/MM/YYYY HH:mm:ss format
+  const parseDateString = (dateString: string): Date | null => {
+    if (!dateString) return null;
+    
+    try {
+      // Format: "27/10/2025 09:35:05" -> convert to ISO
+      const parts = dateString.split(' ');
+      if (parts.length !== 2) return null;
+      
+      const [datePart, timePart] = parts;
+      const [day, month, year] = datePart.split('/');
+      const [hour, minute, second] = timePart.split(':');
+      
+      // Create ISO format: YYYY-MM-DDTHH:mm:ss
+      const isoString = `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+      const date = new Date(isoString);
+      
+      if (isNaN(date.getTime())) return null;
+      return date;
+    } catch (error) {
+      console.error('Error parsing date:', dateString, error);
+      return null;
+    }
+  };
+
+  // Format date to readable string
+  const formatDateTime = (dateString: string) => {
+    if (!dateString) return 'Gần đây';
+    
+    const date = parseDateString(dateString);
+    
+    if (!date || isNaN(date.getTime())) {
+      return 'Gần đây';
+    }
+    
+    const now = new Date();
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+    
+    // Nếu trong vòng 24h: hiển thị relative time
+    if (diffInHours < 24) {
+      const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+      if (diffInMinutes < 1) return 'Vừa xong';
+      if (diffInMinutes < 60) return `${diffInMinutes} phút trước`;
+      return `${diffInHours} giờ trước`;
+    }
+    
+    // Nếu > 24h: hiển thị ngày và giờ
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const hour = date.getHours().toString().padStart(2, '0');
+    const minute = date.getMinutes().toString().padStart(2, '0');
+    
+    // Nếu cùng năm: chỉ hiển thị ngày/tháng
+    if (year === now.getFullYear()) {
+      if (diffInDays < 7) {
+        return `${diffInDays} ngày trước`;
+      }
+      return `${day}/${month} lúc ${hour}:${minute}`;
+    }
+    
+    // Khác năm: hiển thị đầy đủ
+    return `${day}/${month}/${year}`;
+  };
+
+  const recentActivity = recentBookings.map(getActivityFromBooking);
+
+  // Render activity icon
+  const renderActivityIcon = (iconName: string, iconColor: string) => {
+    const iconSize = 18;
+
+    switch (iconName) {
+      case 'motorcycle':
+        return <FontAwesome5 name="motorcycle" size={iconSize} color={iconColor} />;
+      case 'check':
+        return <CheckCircle size={iconSize} color={iconColor} />;
+      case 'key':
+        return <Key size={iconSize} color={iconColor} />;
+      case 'flag':
+        return <Flag size={iconSize} color={iconColor} />;
+      case 'x':
+        return <XCircle size={iconSize} color={iconColor} />;
+      default:
+        return <FontAwesome5 name="motorcycle" size={iconSize} color={iconColor} />;
+    }
+  };
+
+  // Format price
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+      minimumFractionDigits: 0,
+    }).format(price);
+  };
 
   const handleLogout = () => {
     setShowLogoutModal(true);
@@ -86,33 +245,6 @@ export default function ProfileScreen() {
 
   const handleEditProfile = () => {
     router.push('/edit-profile');
-  };
-
-  const toggleTheme = () => {
-    const newMode = mode === 'light' ? 'dark' : mode === 'dark' ? 'system' : 'light';
-    setMode(newMode);
-  };
-
-  const getThemeIcon = () => {
-    switch (mode) {
-      case 'light':
-        return <Sun size={20} color={colors.textSecondary} />;
-      case 'dark':
-        return <Moon size={20} color={colors.textSecondary} />;
-      default:
-        return <Settings size={20} color={colors.textSecondary} />;
-    }
-  };
-
-  const getThemeText = () => {
-    switch (mode) {
-      case 'light':
-        return 'Sáng';
-      case 'dark':
-        return 'Tối';
-      default:
-        return 'Theo hệ thống';
-    }
   };
 
   const menuSections = [
@@ -146,31 +278,6 @@ export default function ProfileScreen() {
       ]
     },
     {
-      title: 'Ưu đãi & Điểm thưởng',
-      items: [
-        {
-          id: 5,
-          title: 'Điểm thưởng của tôi',
-          icon: <Gift size={20} color={colors.textSecondary} />,
-          badge: `${userStats.points} điểm`,
-          onPress: () => Alert.alert('Điểm thưởng', `Bạn có ${userStats.points} điểm thưởng`),
-        },
-        {
-          id: 6,
-          title: 'Mã giảm giá',
-          icon: <Trophy size={20} color={colors.textSecondary} />,
-          badge: '3 mã',
-          onPress: () => Alert.alert('Mã giảm giá', 'Bạn có 3 mã giảm giá khả dụng'),
-        },
-        {
-          id: 7,
-          title: 'Chương trình giới thiệu',
-          icon: <Share2 size={20} color={colors.textSecondary} />,
-          onPress: () => Alert.alert('Giới thiệu', 'Mời bạn bè và nhận thưởng!'),
-        },
-      ]
-    },
-    {
       title: 'Hỗ trợ',
       items: [
         {
@@ -200,14 +307,6 @@ export default function ProfileScreen() {
       ]
     }
   ];
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-      minimumFractionDigits: 0,
-    }).format(price);
-  };
 
   const styles = StyleSheet.create({
     container: {
@@ -331,40 +430,6 @@ export default function ProfileScreen() {
       textAlign: 'center',
       fontFamily: 'Inter-Regular',
     },
-    progressSection: {
-      marginTop: 20,
-      paddingTop: 20,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    progressHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 8,
-    },
-    progressTitle: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: colors.text,
-      fontFamily: 'Inter-Medium',
-    },
-    progressPoints: {
-      fontSize: 12,
-      color: colors.textSecondary,
-      fontFamily: 'Inter-Regular',
-    },
-    progressBar: {
-      height: 6,
-      backgroundColor: colors.border,
-      borderRadius: 3,
-      overflow: 'hidden',
-    },
-    progressFill: {
-      height: '100%',
-      backgroundColor: colors.primary,
-      borderRadius: 3,
-    },
     section: {
       backgroundColor: colors.surface,
       marginHorizontal: 20,
@@ -403,114 +468,143 @@ export default function ProfileScreen() {
       color: colors.text,
       fontFamily: 'Inter-Regular',
     },
-    menuBadge: {
-      fontSize: 12,
-      color: colors.primary,
-      fontWeight: '600',
-      fontFamily: 'Inter-Medium',
-      marginTop: 2,
-    },
-    switchContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 20,
-      paddingVertical: 16,
-    },
-    switchText: {
-      flex: 1,
-      fontSize: 16,
-      color: colors.text,
-      marginLeft: 8,
-      fontFamily: 'Inter-Regular',
-    },
-    themeOption: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingVertical: 16,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    themeInfo: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flex: 1,
-    },
-    themeText: {
-      fontSize: 16,
-      color: colors.text,
-      marginLeft: 8,
-      fontFamily: 'Inter-Regular',
-    },
-    themeValue: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      fontFamily: 'Inter-Regular',
-    },
-    achievementsGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 12,
-      padding: 20,
-      paddingTop: 12,
-    },
-    achievementCard: {
-      backgroundColor: colors.background,
+    activityItemCard: {
+      marginHorizontal: 20,
+      marginTop: 12,
+      backgroundColor: colors.surface,
       borderRadius: 12,
-      padding: 12,
-      alignItems: 'center',
-      width: (width - 76) / 2,
       borderWidth: 1,
       borderColor: colors.border,
+      shadowColor: colors.text,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      elevation: 2,
     },
-    achievementCardUnlocked: {
-      borderColor: colors.primary,
-      backgroundColor: colors.primary + '10',
-    },
-    achievementIcon: {
-      fontSize: 24,
-      marginBottom: 8,
-    },
-    achievementTitle: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.text,
-      textAlign: 'center',
-      marginBottom: 4,
-      fontFamily: 'Inter-Medium',
-    },
-    achievementDesc: {
-      fontSize: 10,
-      color: colors.textSecondary,
-      textAlign: 'center',
-      fontFamily: 'Inter-Regular',
-    },
-    activityItem: {
+    activityRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
+      padding: 12,
     },
-    activityIcon: {
-      fontSize: 20,
+    activityIconContainer: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
       marginRight: 12,
     },
-    activityContent: {
+    activityMainContent: {
       flex: 1,
+      gap: 6,
     },
-    activityText: {
-      fontSize: 14,
+    activityHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    activityTitleContainer: {
+      flex: 1,
+      gap: 2,
+    },
+    activityVehicleCode: {
+      fontSize: 15,
+      fontWeight: '600',
       color: colors.text,
+      fontFamily: 'Inter-SemiBold',
+    },
+    activityVehicleModel: {
+      fontSize: 13,
+      color: colors.textSecondary,
       fontFamily: 'Inter-Regular',
     },
-    activityTime: {
+    statusBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+    },
+    statusBadgeText: {
+      fontSize: 11,
+      fontWeight: '600',
+      fontFamily: 'Inter-SemiBold',
+    },
+    activityDetails: {
+      gap: 4,
+    },
+    activityDetailRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    activityStationText: {
+      flex: 1,
+      fontSize: 13,
+      color: colors.textSecondary,
+      fontFamily: 'Inter-Regular',
+    },
+    activityCodeText: {
       fontSize: 12,
       color: colors.textSecondary,
-      marginTop: 2,
       fontFamily: 'Inter-Regular',
+    },
+    activityDivider: {
+      fontSize: 12,
+      color: colors.textSecondary,
+      marginHorizontal: 4,
+    },
+    activityPriceText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.primary,
+      fontFamily: 'Inter-SemiBold',
+    },
+    activityTimeText: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      fontFamily: 'Inter-Regular',
+    },
+    activityLoadingContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 24,
+      gap: 12,
+    },
+    activityLoadingText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      fontFamily: 'Inter-Regular',
+    },
+    activityEmptyContainer: {
+      alignItems: 'center',
+      paddingVertical: 24,
+    },
+    activityEmptyText: {
+      fontSize: 14,
+      color: colors.textSecondary,
+      fontFamily: 'Inter-Regular',
+    },
+    seeMoreButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      marginHorizontal: 20,
+      marginTop: 12,
+      marginBottom: 8,
+      borderRadius: 12,
+      backgroundColor: colors.primary + '10',
+      borderWidth: 1,
+      borderColor: colors.primary + '30',
+      gap: 6,
+    },
+    seeMoreText: {
+      fontSize: 14,
+      color: colors.primary,
+      fontWeight: '600',
+      fontFamily: 'Inter-SemiBold',
     },
     logoutButton: {
       backgroundColor: colors.error + '10',
@@ -591,8 +685,6 @@ export default function ProfileScreen() {
     },
   });
 
-  const progressPercentage = (userStats.points / userStats.nextLevelPoints) * 100;
-
   return (
     <View style={styles.container}>
       <Animated.View entering={FadeInUp.delay(100)} style={styles.header}>
@@ -644,115 +736,144 @@ export default function ProfileScreen() {
               <Text style={styles.statLabel}>Đánh giá</Text>
             </View>
           </View>
-
-          {/* Progress to Next Level */}
-          <View style={styles.progressSection}>
-            <View style={styles.progressHeader}>
-              <Text style={styles.progressTitle}>Tiến độ lên hạng</Text>
-              <Text style={styles.progressPoints}>
-                {userStats.points}/{userStats.nextLevelPoints} điểm
-              </Text>
-            </View>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${progressPercentage}%` }]} />
-            </View>
-          </View>
         </Animated.View>
 
-        {/* Achievements Section */}
-        <Animated.View entering={FadeInDown.delay(300)} style={styles.section}>
-          <Text style={styles.sectionTitle}>Thành tích</Text>
-          <View style={styles.achievementsGrid}>
-            {achievements.map((achievement) => (
-              <View
-                key={achievement.id}
-                style={[
-                  styles.achievementCard,
-                  achievement.unlocked && styles.achievementCardUnlocked
-                ]}
-              >
-                <Text style={styles.achievementIcon}>{achievement.icon}</Text>
-                <Text style={styles.achievementTitle}>{achievement.title}</Text>
-                <Text style={styles.achievementDesc}>{achievement.description}</Text>
+        {/* Tài khoản Section */}
+        <Animated.View 
+          entering={FadeInDown.delay(300)} 
+          style={styles.section}
+        >
+          <Text style={styles.sectionTitle}>{menuSections[0].title}</Text>
+          
+          {menuSections[0].items.map((item, index) => (
+            <TouchableOpacity
+              key={item.id}
+              style={[styles.menuItem, index === 0 && { borderTopWidth: 0 }]}
+              onPress={item.onPress}
+            >
+              <View style={styles.menuIcon}>
+                {item.icon}
               </View>
-            ))}
-          </View>
+              <View style={styles.menuContent}>
+                <Text style={styles.menuText}>{item.title}</Text>
+              </View>
+              <ChevronRight size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+          ))}
         </Animated.View>
 
         {/* Recent Activity */}
         <Animated.View entering={FadeInDown.delay(400)} style={styles.section}>
           <Text style={styles.sectionTitle}>Hoạt động gần đây</Text>
-          {recentActivity.map((activity, index) => (
-            <View
-              key={activity.id}
-              style={[styles.activityItem, index === 0 && { borderTopWidth: 0 }]}
-            >
-              <Text style={styles.activityIcon}>{activity.icon}</Text>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityText}>{activity.action}</Text>
-                <Text style={styles.activityTime}>{activity.time}</Text>
-              </View>
+          
+          {loadingActivities ? (
+            <View style={styles.activityLoadingContainer}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={styles.activityLoadingText}>Đang tải...</Text>
             </View>
+          ) : recentActivity.length === 0 ? (
+            <View style={styles.activityEmptyContainer}>
+              <Text style={styles.activityEmptyText}>Chưa có hoạt động nào</Text>
+            </View>
+          ) : (
+            <>
+              {recentActivity.map((activity, index) => (
+                <TouchableOpacity
+                  key={activity.id}
+                  style={[styles.activityItemCard, index === 0 && { marginTop: 0 }]}
+                  onPress={() => router.push(`/booking-details?id=${activity.id}`)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.activityRow}>
+                    <View style={[styles.activityIconContainer, { backgroundColor: activity.iconBgColor }]}>
+                      {renderActivityIcon(activity.iconName, activity.iconColor)}
+                    </View>
+                    
+                    <View style={styles.activityMainContent}>
+                      <View style={styles.activityHeader}>
+                        <View style={styles.activityTitleContainer}>
+                          <Text style={styles.activityVehicleCode} numberOfLines={1}>
+                            {activity.vehicleCode}
+                          </Text>
+                          {activity.vehicleModel && (
+                            <Text style={styles.activityVehicleModel} numberOfLines={1}>
+                              {activity.vehicleModel}
+                            </Text>
+                          )}
+                        </View>
+                        <View style={[styles.statusBadge, { backgroundColor: activity.iconBgColor }]}>
+                          <Text style={[styles.statusBadgeText, { color: activity.iconColor }]}>
+                            {activity.statusText}
+                          </Text>
+                        </View>
+                      </View>
+                      
+                      <View style={styles.activityDetails}>
+                        <View style={styles.activityDetailRow}>
+                          <MapPin size={12} color={colors.textSecondary} />
+                          <Text style={styles.activityStationText} numberOfLines={1}>
+                            {activity.stationName}
+                          </Text>
+                        </View>
+                        
+                        <View style={styles.activityDetailRow}>
+                          <Text style={styles.activityCodeText}>Mã: {activity.bookingCode}</Text>
+                          <Text style={styles.activityDivider}>•</Text>
+                          <Text style={styles.activityPriceText}>{formatPrice(activity.price)}</Text>
+                        </View>
+                      </View>
+                      
+                      <Text style={styles.activityTimeText}>{activity.time}</Text>
+                    </View>
+                    
+                    <ChevronRight size={20} color={colors.textSecondary} />
+                  </View>
+                </TouchableOpacity>
+              ))}
+              
+              {/* Nút Xem thêm nếu có nhiều hơn 5 bookings */}
+              {totalBookings > 5 && (
+                <TouchableOpacity
+                  style={styles.seeMoreButton}
+                  onPress={() => router.push('/(tabs)/history')}
+                >
+                  <Text style={styles.seeMoreText}>
+                    Xem thêm
+                  </Text>
+                  <ChevronRight size={16} color={colors.primary} />
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+        </Animated.View>
+
+        {/* Hỗ trợ Section */}
+        <Animated.View 
+          entering={FadeInDown.delay(500)} 
+          style={styles.section}
+        >
+          <Text style={styles.sectionTitle}>{menuSections[1].title}</Text>
+          
+          {menuSections[1].items.map((item, index) => (
+            <TouchableOpacity
+              key={item.id}
+              style={[styles.menuItem, index === 0 && { borderTopWidth: 0 }]}
+              onPress={item.onPress}
+            >
+              <View style={styles.menuIcon}>
+                {item.icon}
+              </View>
+              <View style={styles.menuContent}>
+                <Text style={styles.menuText}>{item.title}</Text>
+              </View>
+              <ChevronRight size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
           ))}
         </Animated.View>
 
-        {/* Settings Sections */}
-        <Animated.View entering={FadeInDown.delay(500)} style={styles.section}>
-          <Text style={styles.sectionTitle}>Cài đặt</Text>
-          
-          <View style={styles.switchContainer}>
-            <Bell size={20} color={colors.textSecondary} />
-            <Text style={styles.switchText}>Thông báo</Text>
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={setNotificationsEnabled}
-              trackColor={{ false: colors.border, true: colors.primary + '50' }}
-              thumbColor={notificationsEnabled ? colors.primary : colors.textSecondary}
-            />
-          </View>
-          
-          <TouchableOpacity style={styles.themeOption} onPress={toggleTheme}>
-            <View style={styles.themeInfo}>
-              {getThemeIcon()}
-              <Text style={styles.themeText}>Giao diện</Text>
-            </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={styles.themeValue}>{getThemeText()}</Text>
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Menu Sections */}
-        {menuSections.map((section, sectionIndex) => (
-          <Animated.View 
-            key={section.title}
-            entering={FadeInDown.delay(600 + sectionIndex * 100)} 
-            style={styles.section}
-          >
-            <Text style={styles.sectionTitle}>{section.title}</Text>
-            
-            {section.items.map((item, index) => (
-              <TouchableOpacity
-                key={item.id}
-                style={[styles.menuItem, index === 0 && { borderTopWidth: 0 }]}
-                onPress={item.onPress}
-              >
-                <View style={styles.menuIcon}>
-                  {item.icon}
-                </View>
-                <View style={styles.menuContent}>
-                  <Text style={styles.menuText}>{item.title}</Text>
-                  {item.badge && <Text style={styles.menuBadge}>{item.badge}</Text>}
-                </View>
-                <ChevronRight size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            ))}
-          </Animated.View>
-        ))}
-
         {/* Logout Button */}
         <AnimatedTouchableOpacity
-          entering={FadeInDown.delay(900)}
+          entering={FadeInDown.delay(600)}
           style={styles.logoutButton}
           onPress={handleLogout}
         >

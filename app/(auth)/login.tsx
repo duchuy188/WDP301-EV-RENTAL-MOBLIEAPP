@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
-  Alert,
   useColorScheme,
   KeyboardAvoidingView,
   Platform,
@@ -27,6 +26,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const { login } = useAuthStore();
   const { googleLogin } = useAuthStore();
@@ -64,8 +64,11 @@ export default function LoginScreen() {
   const theme = colors[colorScheme ?? 'light'];
 
   const handleLogin = async () => {
+    // Clear previous error
+    setErrorMessage('');
+    
     if (!email || !password) {
-      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin');
+      setErrorMessage('Vui lòng nhập đầy đủ thông tin');
       return;
     }
 
@@ -74,7 +77,7 @@ export default function LoginScreen() {
       await login(email, password);
       router.replace('/(tabs)');
     } catch (error) {
-      Alert.alert('Đăng nhập thất bại', 'Email hoặc mật khẩu không đúng');
+      setErrorMessage('Email hoặc mật khẩu không đúng');
     } finally {
       setIsLoading(false);
     }
@@ -82,19 +85,22 @@ export default function LoginScreen() {
 
   // Google Sign-in using OAuth2 (ID token flow)
   const handleGoogleSignIn = async () => {
+    // Clear previous error
+    setErrorMessage('');
+    
     try {
       // build the request
       const redirectUri = AuthSession.makeRedirectUri();
 
       const clientId = GOOGLE_EXPO_CLIENT_ID;
       if (!clientId || clientId.startsWith('<YOUR_')) {
-        Alert.alert('Cấu hình Google OAuth', 'Vui lòng cấu hình GOOGLE_EXPO_CLIENT_ID trong env hoặc thay các placeholder trong mã nguồn.');
+        setErrorMessage('Vui lòng cấu hình GOOGLE_EXPO_CLIENT_ID trong env');
         return;
       }
 
       const scopes = ['openid', 'profile', 'email'];
       if (!discovery) {
-        Alert.alert('Lỗi cấu hình', 'Không thể lấy thông tin discovery từ Google. Vui lòng thử lại sau.');
+        setErrorMessage('Không thể lấy thông tin discovery từ Google. Vui lòng thử lại sau.');
         return;
       }
 
@@ -116,7 +122,7 @@ export default function LoginScreen() {
       if (result.type === 'success') {
         const idToken = (result as any).params?.id_token;
         if (!idToken) {
-          Alert.alert('Đăng nhập Google thất bại', 'Không nhận được idToken từ Google');
+          setErrorMessage('Không nhận được idToken từ Google');
           return;
         }
 
@@ -126,19 +132,19 @@ export default function LoginScreen() {
           await googleLogin(idToken);
           router.replace('/(tabs)');
         } catch (e) {
-          Alert.alert('Lỗi', 'Đăng nhập bằng Google thất bại');
+          setErrorMessage('Đăng nhập bằng Google thất bại');
         } finally {
           setIsGoogleLoading(false);
         }
       } else if (result.type === 'dismiss' || result.type === 'cancel') {
         // user cancelled
       } else {
-        Alert.alert('Lỗi OAuth', 'Kết quả không hợp lệ: ' + JSON.stringify(result));
+        setErrorMessage('Kết quả OAuth không hợp lệ');
       }
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Google sign-in error', error);
-      Alert.alert('Lỗi', 'Không thể đăng nhập với Google');
+      setErrorMessage('Không thể đăng nhập với Google');
     }
   };
 
@@ -270,6 +276,19 @@ export default function LoginScreen() {
       fontWeight: '600',
       fontFamily: 'Inter-Medium',
     },
+    errorContainer: {
+      backgroundColor: '#FEE',
+      borderLeftWidth: 4,
+      borderLeftColor: '#F44',
+      padding: 12,
+      borderRadius: 8,
+      marginBottom: 20,
+    },
+    errorText: {
+      color: '#C00',
+      fontSize: 14,
+      fontFamily: 'Inter-Medium',
+    },
   });
 
   return (
@@ -298,7 +317,10 @@ export default function LoginScreen() {
               <TextInput
                 style={styles.input}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (errorMessage) setErrorMessage('');
+                }}
                 placeholder="Nhập email của bạn"
                 placeholderTextColor={theme.textSecondary}
                 keyboardType="email-address"
@@ -314,7 +336,10 @@ export default function LoginScreen() {
               <TextInput
                 style={styles.input}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  if (errorMessage) setErrorMessage('');
+                }}
                 placeholder="Nhập mật khẩu"
                 placeholderTextColor={theme.textSecondary}
                 secureTextEntry={!showPassword}
@@ -337,6 +362,15 @@ export default function LoginScreen() {
               <Text style={styles.forgotText}>Quên mật khẩu?</Text>
             </Link>
           </TouchableOpacity>
+
+          {errorMessage ? (
+            <Animated.View 
+              entering={FadeInDown.duration(300)} 
+              style={styles.errorContainer}
+            >
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </Animated.View>
+          ) : null}
 
           <AnimatedTouchableOpacity
             style={styles.loginButton}

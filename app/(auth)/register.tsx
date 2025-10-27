@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   useColorScheme,
   KeyboardAvoidingView,
   Platform,
@@ -29,6 +28,8 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   const { register } = useAuthStore();
 
@@ -56,35 +57,36 @@ export default function RegisterScreen() {
   const theme = colors[colorScheme ?? 'light'];
 
   const handleRegister = async () => {
+    // Clear previous messages
+    setErrorMessage('');
+    setSuccessMessage('');
+
     if (!formData.name || !formData.email || !formData.password) {
-      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin');
+      setErrorMessage('Vui lòng nhập đầy đủ thông tin');
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      Alert.alert('Lỗi', 'Mật khẩu xác nhận không khớp');
+      setErrorMessage('Mật khẩu xác nhận không khớp');
       return;
     }
 
     // Validate password strength (match backend requirements)
     if (formData.password.length < 8) {
-      Alert.alert('Lỗi', 'Mật khẩu phải có ít nhất 8 ký tự');
+      setErrorMessage('Mật khẩu phải có ít nhất 8 ký tự');
       return;
     }
 
     const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/;
     if (!passwordRegex.test(formData.password)) {
-      Alert.alert(
-        'Mật khẩu không hợp lệ', 
-        'Mật khẩu phải bao gồm:\n• Chữ hoa (A-Z)\n• Chữ thường (a-z)\n• Số (0-9)\n• Ký tự đặc biệt (@$!%*?&)'
-      );
+      setErrorMessage('Mật khẩu phải bao gồm: Chữ hoa (A-Z), Chữ thường (a-z), Số (0-9), Ký tự đặc biệt (@$!%*?&)');
       return;
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
-      Alert.alert('Lỗi', 'Email không hợp lệ');
+      setErrorMessage('Email không hợp lệ');
       return;
     }
 
@@ -92,25 +94,19 @@ export default function RegisterScreen() {
     try {
       // Gọi API đăng ký
       await register({
-        fullname: formData.name,
+        name: formData.name,
         email: formData.email,
         password: formData.password,
       });
       
       // Đăng ký thành công
-      Alert.alert(
-        'Đăng ký thành công!', 
-        'Tài khoản của bạn đã được tạo. Vui lòng đăng nhập để tiếp tục.', 
-        [
-          { 
-            text: 'Đăng nhập ngay', 
-            onPress: () => router.replace('/(auth)/login') 
-          }
-        ]
-      );
+      setSuccessMessage('Đăng ký thành công! Đang chuyển đến trang đăng nhập...');
+      setTimeout(() => {
+        router.replace('/(auth)/login');
+      }, 2000);
     } catch (error: any) {
-      const errorMessage = error?.message || 'Có lỗi xảy ra, vui lòng thử lại';
-      Alert.alert('Đăng ký thất bại', errorMessage);
+      const message = error?.message || 'Có lỗi xảy ra, vui lòng thử lại';
+      setErrorMessage(message);
     } finally {
       setIsLoading(false);
     }
@@ -123,33 +119,37 @@ export default function RegisterScreen() {
     },
     scrollView: {
       flexGrow: 1,
+      justifyContent: 'center',
     },
     header: {
-      paddingTop: 60,
-      paddingBottom: 20,
+      paddingTop: 80,
+      paddingBottom: 30,
       alignItems: 'center',
+      justifyContent: 'center',
     },
     title: {
-      fontSize: 28,
+      fontSize: 32,
       fontWeight: 'bold',
       color: theme.primary,
-      marginBottom: 8,
+      marginBottom: 12,
       fontFamily: 'Inter-Bold',
+      textAlign: 'center',
     },
     subtitle: {
-      fontSize: 14,
+      fontSize: 15,
       color: theme.textSecondary,
       textAlign: 'center',
-      paddingHorizontal: 40,
+      paddingHorizontal: 50,
       fontFamily: 'Inter-Regular',
+      lineHeight: 22,
     },
     formContainer: {
       backgroundColor: theme.surface,
       borderTopLeftRadius: 30,
       borderTopRightRadius: 30,
       paddingHorizontal: 30,
-      paddingTop: 30,
-      paddingBottom: 40,
+      paddingTop: 40,
+      paddingBottom: 50,
     },
     inputGroup: {
       marginBottom: 16,
@@ -223,6 +223,32 @@ export default function RegisterScreen() {
       fontWeight: '600',
       fontFamily: 'Inter-Medium',
     },
+    errorContainer: {
+      backgroundColor: '#FEE',
+      borderLeftWidth: 4,
+      borderLeftColor: '#F44',
+      padding: 12,
+      borderRadius: 8,
+      marginBottom: 20,
+    },
+    errorText: {
+      color: '#C00',
+      fontSize: 14,
+      fontFamily: 'Inter-Medium',
+    },
+    successContainer: {
+      backgroundColor: '#E8F5E9',
+      borderLeftWidth: 4,
+      borderLeftColor: '#4CAF50',
+      padding: 12,
+      borderRadius: 8,
+      marginBottom: 20,
+    },
+    successText: {
+      color: '#2E7D32',
+      fontSize: 14,
+      fontFamily: 'Inter-Medium',
+    },
   });
 
   return (
@@ -246,7 +272,10 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 value={formData.name}
-                onChangeText={(text) => setFormData({ ...formData, name: text })}
+                onChangeText={(text) => {
+                  setFormData({ ...formData, name: text });
+                  if (errorMessage) setErrorMessage('');
+                }}
                 placeholder="Nhập họ và tên"
                 placeholderTextColor={theme.textSecondary}
               />
@@ -260,7 +289,10 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 value={formData.email}
-                onChangeText={(text) => setFormData({ ...formData, email: text })}
+                onChangeText={(text) => {
+                  setFormData({ ...formData, email: text });
+                  if (errorMessage) setErrorMessage('');
+                }}
                 placeholder="Nhập email"
                 placeholderTextColor={theme.textSecondary}
                 keyboardType="email-address"
@@ -276,7 +308,10 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 value={formData.password}
-                onChangeText={(text) => setFormData({ ...formData, password: text })}
+                onChangeText={(text) => {
+                  setFormData({ ...formData, password: text });
+                  if (errorMessage) setErrorMessage('');
+                }}
                 placeholder="Nhập mật khẩu"
                 placeholderTextColor={theme.textSecondary}
                 secureTextEntry={!showPassword}
@@ -304,7 +339,10 @@ export default function RegisterScreen() {
               <TextInput
                 style={styles.input}
                 value={formData.confirmPassword}
-                onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
+                onChangeText={(text) => {
+                  setFormData({ ...formData, confirmPassword: text });
+                  if (errorMessage) setErrorMessage('');
+                }}
                 placeholder="Nhập lại mật khẩu"
                 placeholderTextColor={theme.textSecondary}
                 secureTextEntry={!showConfirmPassword}
@@ -321,6 +359,24 @@ export default function RegisterScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {errorMessage ? (
+            <Animated.View 
+              entering={FadeInDown.duration(300)} 
+              style={styles.errorContainer}
+            >
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </Animated.View>
+          ) : null}
+
+          {successMessage ? (
+            <Animated.View 
+              entering={FadeInDown.duration(300)} 
+              style={styles.successContainer}
+            >
+              <Text style={styles.successText}>{successMessage}</Text>
+            </Animated.View>
+          ) : null}
 
           <AnimatedTouchableOpacity
             style={styles.registerButton}
