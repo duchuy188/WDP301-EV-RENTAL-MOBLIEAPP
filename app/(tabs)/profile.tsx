@@ -13,7 +13,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { 
-  CreditCard, 
   CircleHelp as HelpCircle, 
   LogOut, 
   ChevronRight, 
@@ -48,37 +47,67 @@ export default function ProfileScreen() {
   const [recentBookings, setRecentBookings] = useState<Booking[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
   const [totalBookings, setTotalBookings] = useState(0);
-
-  const userStats = {
+  const [userStats, setUserStats] = useState({
     level: 'Eco Driver',
-    totalTrips: 28,
-    totalDistance: 945,
-    co2Saved: 127,
-    rating: 4.9,
-    points: 2450,
-    nextLevelPoints: 3000,
-    memberSince: '2023-06-15',
-    favoriteVehicle: 'Tesla Model 3',
-    totalSavings: 850000,
-  };
+    totalTrips: 0,
+    totalDistance: 0,
+    totalSpending: 0,
+  });
 
-
-  // Fetch recent bookings
+  // Fetch all bookings and calculate stats
   useEffect(() => {
-    const fetchRecentBookings = async () => {
+    const fetchBookingsAndStats = async () => {
       try {
         setLoadingActivities(true);
-        const response = await bookingAPI.getBookings({ page: 1, limit: 5 });
-        setRecentBookings(response.bookings);
-        setTotalBookings(response.pagination.totalRecords);
+        
+        // Fetch recent bookings for activity list
+        const recentResponse = await bookingAPI.getBookings({ page: 1, limit: 5 });
+        setRecentBookings(recentResponse.bookings);
+        setTotalBookings(recentResponse.pagination.totalRecords);
+        
+        // Fetch all bookings to calculate stats
+        const allResponse = await bookingAPI.getBookings({ 
+          page: 1, 
+          limit: 1000 // Get a large number to calculate stats
+        });
+        
+        const allBookings = allResponse.bookings || [];
+        
+        // Filter completed bookings
+        const completedBookings = allBookings.filter(b => b.status === 'completed');
+        
+        // Calculate total distance from completed bookings
+        // Estimate: 30km per day of rental
+        const totalDistance = completedBookings.reduce((sum, booking) => {
+          const days = booking.total_days || 1;
+          const estimatedDistance = days * 30; // 30km per day
+          return sum + estimatedDistance;
+        }, 0);
+        
+        // Count completed trips
+        const totalTrips = completedBookings.length;
+        
+        // Calculate total spending from completed bookings
+        const totalSpending = completedBookings.reduce((sum, booking) => {
+          const amount = booking.final_amount || booking.total_price || 0;
+          return sum + amount;
+        }, 0);
+        
+        setUserStats({
+          level: 'Eco Driver',
+          totalTrips,
+          totalDistance: Math.round(totalDistance),
+          totalSpending: Math.round(totalSpending),
+        });
+        
       } catch (error) {
-        console.error('❌ Error fetching recent bookings:', error);
+        console.error('❌ Error fetching bookings:', error);
       } finally {
         setLoadingActivities(false);
       }
     };
 
-    fetchRecentBookings();
+    fetchBookingsAndStats();
   }, []);
 
   // Transform bookings to activity format
@@ -263,18 +292,6 @@ export default function ProfileScreen() {
           icon: <FileText size={20} color={colors.textSecondary} />,
           onPress: () => router.push('/verify-documents'),
         },
-        {
-          id: 3,
-          title: 'Phương thức thanh toán',
-          icon: <CreditCard size={20} color={colors.textSecondary} />,
-          onPress: () => Alert.alert('Thanh toán', 'Tính năng đang phát triển'),
-        },
-        {
-          id: 4,
-          title: 'Địa chỉ đã lưu',
-          icon: <MapPin size={20} color={colors.textSecondary} />,
-          onPress: () => Alert.alert('Địa chỉ', 'Tính năng đang phát triển'),
-        },
       ]
     },
     {
@@ -413,12 +430,13 @@ export default function ProfileScreen() {
       borderRadius: 12,
       padding: 12,
       alignItems: 'center',
-      width: (width - 88) / 4,
+      flex: 1,
+      minWidth: (width - 88) / 3 - 8,
       borderWidth: 1,
       borderColor: colors.border,
     },
     statValue: {
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: 'bold',
       color: colors.text,
       fontFamily: 'Inter-Bold',
@@ -727,13 +745,13 @@ export default function ProfileScreen() {
             </View>
             
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>{userStats.co2Saved}</Text>
-              <Text style={styles.statLabel}>CO2 tiết kiệm</Text>
-            </View>
-            
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{userStats.rating}</Text>
-              <Text style={styles.statLabel}>Đánh giá</Text>
+              <Text style={styles.statValue}>
+                {userStats.totalSpending >= 1000000 
+                  ? `${(userStats.totalSpending / 1000000).toFixed(1)}tr`
+                  : `${userStats.totalSpending.toLocaleString('vi-VN')}đ`
+                }
+              </Text>
+              <Text style={styles.statLabel}>Tổng chi</Text>
             </View>
           </View>
         </Animated.View>

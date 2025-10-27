@@ -166,69 +166,20 @@ export default function ChatbotScreen() {
 
   const loadChatHistory = async () => {
     try {
-      let storedSessionId = await AsyncStorage.getItem('chatbot_session_id');
+      // Luôn tạo session mới mỗi lần mở app
+      const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      await AsyncStorage.setItem('chatbot_session_id', newSessionId);
+      setSessionId(newSessionId);
       
-      if (!storedSessionId) {
-        storedSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        await AsyncStorage.setItem('chatbot_session_id', storedSessionId);
-      }
+      // Hiển thị welcome message cho chat mới
+      showWelcomeMessage();
       
-      setSessionId(storedSessionId);
-
-      try {
-        const historyResponse = await getConversationHistory(storedSessionId);
-        
-        if (__DEV__) {
-          console.log('[Chatbot] History response:', JSON.stringify(historyResponse, null, 2));
-        }
-        
-        // Try different response structures
-        let historyMessages = 
-          historyResponse.data?.data?.messages || 
-          historyResponse.data?.messages || 
-          (historyResponse as any).messages;
-        
-        if (__DEV__) {
-          console.log('[Chatbot] Extracted messages:', historyMessages);
-        }
-        
-        if (historyMessages && Array.isArray(historyMessages) && historyMessages.length > 0) {
-          const loadedMessages: Message[] = historyMessages.map((msg: any, idx: number) => {
-            const messageText = msg.content || msg.message || msg.text || '[Empty message]';
-            const messageRole = msg.role?.toLowerCase();
-            
-            return {
-              id: `${storedSessionId}_${idx}`,
-              text: messageText,
-              isUser: messageRole === 'user',
-              timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
-            };
-          });
-          
-          if (__DEV__) {
-            console.log(`[Chatbot] Loaded ${loadedMessages.length} messages from history`);
-          }
-          
-          setMessages(loadedMessages);
-        } else {
-          if (__DEV__) {
-            console.log('[Chatbot] No messages in history, showing welcome');
-          }
-          showWelcomeMessage();
-        }
-      } catch (error: any) {
-        if (error?.response?.status === 404) {
-          if (__DEV__) {
-            console.log('[Chatbot] No chat history found, showing welcome message');
-          }
-          showWelcomeMessage();
-        } else {
-          console.error('Error loading chat history:', error?.message || error);
-          showWelcomeMessage();
-        }
+      if (__DEV__) {
+        console.log('[Chatbot] Started fresh chat session:', newSessionId);
       }
     } catch (error) {
       console.error('Error in loadChatHistory:', error);
+      showWelcomeMessage();
     }
   };
 
@@ -460,10 +411,10 @@ export default function ChatbotScreen() {
     messagesContainer: {
       flex: 1,
       paddingHorizontal: 16,
-      paddingTop: 16,
+      paddingTop: 8,
     },
     messageWrapper: {
-      marginBottom: 16,
+      marginBottom: 12,
       flexDirection: 'row',
       alignItems: 'flex-end',
     },
@@ -521,7 +472,7 @@ export default function ChatbotScreen() {
     loadingWrapper: {
       flexDirection: 'row',
       alignItems: 'flex-end',
-      marginBottom: 16,
+      marginBottom: 12,
     },
     loadingBubble: {
       backgroundColor: theme.surface,
@@ -533,7 +484,7 @@ export default function ChatbotScreen() {
     },
     quickActions: {
       paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingVertical: 8,
     },
     quickActionsTitle: {
       fontSize: 14,
@@ -563,7 +514,7 @@ export default function ChatbotScreen() {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingVertical: 10,
       backgroundColor: theme.surface,
       borderTopWidth: 1,
       borderTopColor: theme.border,
@@ -731,6 +682,7 @@ export default function ChatbotScreen() {
         <ScrollView 
           ref={scrollViewRef}
           style={styles.messagesContainer}
+          contentContainerStyle={{ paddingBottom: 8 }}
           showsVerticalScrollIndicator={false}
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         >
