@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { Bot, User, Send, RotateCcw, History, X, Menu, Plus } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { sendMessage as sendChatMessage, getConversationHistory, getConversations } from '@/api/chatbotAPI';
+import { sendMessage as sendChatMessage, getConversationHistory, getConversations, getSuggestions } from '@/api/chatbotAPI';
 
 interface Message {
   id: string;
@@ -102,6 +102,11 @@ export default function ChatbotScreen() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [conversations, setConversations] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([
+    'Xe nào có pin nhiều?',
+    'Giá thuê xe thế nào?',
+    'Trạm xe gần nhất ở đâu?'
+  ]);
   const scrollViewRef = useRef<ScrollView>(null);
   const sidebarAnim = useRef(new Animated.Value(-300)).current;
 
@@ -129,7 +134,9 @@ export default function ChatbotScreen() {
   const theme = colors[colorScheme ?? 'light'];
 
   useEffect(() => {
+    console.log('🟢 [Chatbot] Component mounted - loading initial data...');
     loadChatHistory();
+    loadSuggestions();
   }, []);
 
   useEffect(() => {
@@ -159,69 +166,20 @@ export default function ChatbotScreen() {
 
   const loadChatHistory = async () => {
     try {
-      let storedSessionId = await AsyncStorage.getItem('chatbot_session_id');
+      // Luôn tạo session mới mỗi lần mở app
+      const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      await AsyncStorage.setItem('chatbot_session_id', newSessionId);
+      setSessionId(newSessionId);
       
-      if (!storedSessionId) {
-        storedSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        await AsyncStorage.setItem('chatbot_session_id', storedSessionId);
-      }
+      // Hiển thị welcome message cho chat mới
+      showWelcomeMessage();
       
-      setSessionId(storedSessionId);
-
-      try {
-        const historyResponse = await getConversationHistory(storedSessionId);
-        
-        if (__DEV__) {
-          console.log('[Chatbot] History response:', JSON.stringify(historyResponse, null, 2));
-        }
-        
-        // Try different response structures
-        let historyMessages = 
-          historyResponse.data?.data?.messages || 
-          historyResponse.data?.messages || 
-          (historyResponse as any).messages;
-        
-        if (__DEV__) {
-          console.log('[Chatbot] Extracted messages:', historyMessages);
-        }
-        
-        if (historyMessages && Array.isArray(historyMessages) && historyMessages.length > 0) {
-          const loadedMessages: Message[] = historyMessages.map((msg: any, idx: number) => {
-            const messageText = msg.content || msg.message || msg.text || '[Empty message]';
-            const messageRole = msg.role?.toLowerCase();
-            
-            return {
-              id: `${storedSessionId}_${idx}`,
-              text: messageText,
-              isUser: messageRole === 'user',
-              timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
-            };
-          });
-          
-          if (__DEV__) {
-            console.log(`[Chatbot] Loaded ${loadedMessages.length} messages from history`);
-          }
-          
-          setMessages(loadedMessages);
-        } else {
-          if (__DEV__) {
-            console.log('[Chatbot] No messages in history, showing welcome');
-          }
-          showWelcomeMessage();
-        }
-      } catch (error: any) {
-        if (error?.response?.status === 404) {
-          if (__DEV__) {
-            console.log('[Chatbot] No chat history found, showing welcome message');
-          }
-          showWelcomeMessage();
-        } else {
-          console.error('Error loading chat history:', error?.message || error);
-          showWelcomeMessage();
-        }
+      if (__DEV__) {
+        console.log('[Chatbot] Started fresh chat session:', newSessionId);
       }
     } catch (error) {
       console.error('Error in loadChatHistory:', error);
+      showWelcomeMessage();
     }
   };
 
@@ -232,6 +190,9 @@ export default function ChatbotScreen() {
       setSessionId(newSessionId);
       
       showWelcomeMessage();
+      
+      // Reload suggestions for new chat
+      await loadSuggestions();
       
       if (__DEV__) {
         console.log('[Chatbot] Started new chat session:', newSessionId);
@@ -256,6 +217,38 @@ export default function ChatbotScreen() {
       setConversations([]);
     } finally {
       setLoadingHistory(false);
+    }
+  };
+
+  const loadSuggestions = async () => {
+    console.log('🔵 [Chatbot] Loading suggestions from API...');
+    try {
+      const response = await getSuggestions();
+      console.log('✅ [Chatbot] Suggestions API response:', JSON.stringify(response, null, 2));
+      
+      const suggestionsData = response.data?.suggestions || [];
+      console.log('📝 [Chatbot] Extracted suggestions data:', suggestionsData);
+      console.log('📊 [Chatbot] Is array?', Array.isArray(suggestionsData), 'Length:', suggestionsData.length);
+      
+      const validSuggestions = Array.isArray(suggestionsData) && suggestionsData.length > 0 
+        ? suggestionsData 
+        : [
+            'Xe nào có pin nhiều?',
+            'Giá thuê xe thế nào?',
+            'Trạm xe gần nhất ở đâu?'
+          ];
+      
+      console.log('✨ [Chatbot] Final suggestions to display:', validSuggestions);
+      setSuggestions(validSuggestions);
+    } catch (error) {
+      console.error('❌ [Chatbot] Error loading suggestions:', error);
+      console.log('⚠️ [Chatbot] Using fallback suggestions');
+      // Fallback to default suggestions if API fails
+      setSuggestions([
+        'Xe nào có pin nhiều?',
+        'Giá thuê xe thế nào?',
+        'Trạm xe gần nhất ở đâu?'
+      ]);
     }
   };
 
@@ -320,9 +313,17 @@ export default function ChatbotScreen() {
 
       const success = response.success || response.data?.success;
       const aiText = response.data?.message || response.data?.response || response.message;
+      const responseSuggestions = response.suggestions || response.data?.suggestions;
       
       if (__DEV__) {
         console.log('[Chatbot] Success:', success, 'aiText:', aiText?.substring(0, 50) + '...');
+        console.log('[Chatbot] Response suggestions:', responseSuggestions);
+      }
+      
+      // Update suggestions if provided in response
+      if (responseSuggestions && Array.isArray(responseSuggestions) && responseSuggestions.length > 0) {
+        console.log('🔄 [Chatbot] Updating suggestions from response:', responseSuggestions);
+        setSuggestions(responseSuggestions);
       }
       
       if (success && aiText) {
@@ -354,11 +355,10 @@ export default function ChatbotScreen() {
     }
   };
 
-  const quickActions = [
-    { text: 'Xe nào có pin nhiều?', action: () => setInputText('Xe nào có pin nhiều?') },
-    { text: 'Giá thuê xe thế nào?', action: () => setInputText('Giá thuê xe thế nào?') },
-    { text: 'Trạm xe gần nhất?', action: () => setInputText('Trạm xe gần nhất ở đâu?') },
-  ];
+  const quickActions = suggestions.map(text => ({ 
+    text, 
+    action: () => setInputText(text) 
+  }));
 
   const styles = StyleSheet.create({
     container: {
@@ -411,10 +411,10 @@ export default function ChatbotScreen() {
     messagesContainer: {
       flex: 1,
       paddingHorizontal: 16,
-      paddingTop: 16,
+      paddingTop: 8,
     },
     messageWrapper: {
-      marginBottom: 16,
+      marginBottom: 12,
       flexDirection: 'row',
       alignItems: 'flex-end',
     },
@@ -472,7 +472,7 @@ export default function ChatbotScreen() {
     loadingWrapper: {
       flexDirection: 'row',
       alignItems: 'flex-end',
-      marginBottom: 16,
+      marginBottom: 12,
     },
     loadingBubble: {
       backgroundColor: theme.surface,
@@ -484,7 +484,7 @@ export default function ChatbotScreen() {
     },
     quickActions: {
       paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingVertical: 8,
     },
     quickActionsTitle: {
       fontSize: 14,
@@ -495,13 +495,15 @@ export default function ChatbotScreen() {
     quickActionsRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: 8,
+      marginHorizontal: -4,
+      marginVertical: -4,
     },
     quickAction: {
       backgroundColor: theme.border,
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: 12,
+      margin: 4,
     },
     quickActionText: {
       color: theme.text,
@@ -512,7 +514,7 @@ export default function ChatbotScreen() {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingVertical: 10,
       backgroundColor: theme.surface,
       borderTopWidth: 1,
       borderTopColor: theme.border,
@@ -680,6 +682,7 @@ export default function ChatbotScreen() {
         <ScrollView 
           ref={scrollViewRef}
           style={styles.messagesContainer}
+          contentContainerStyle={{ paddingBottom: 8 }}
           showsVerticalScrollIndicator={false}
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         >
@@ -740,7 +743,7 @@ export default function ChatbotScreen() {
           )}
         </ScrollView>
 
-        {messages.length <= 1 && !isLoading && (
+        {!isLoading && quickActions.length > 0 && (
           <View style={styles.quickActions}>
             <Text style={styles.quickActionsTitle}>Câu hỏi gợi ý:</Text>
             <View style={styles.quickActionsRow}>

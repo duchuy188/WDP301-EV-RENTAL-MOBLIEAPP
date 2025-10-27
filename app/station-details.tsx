@@ -172,8 +172,7 @@ export default function StationDetailsScreen() {
   const typeTranslations: { [key: string]: string } = {
     'scooter': 'Xe tay ga',
     'motorcycle': 'Xe mô tô',
-    'electric': 'Xe điện',
-    'bike': 'Xe đạp điện',
+
   };
 
   const translateType = (type: string): string => {

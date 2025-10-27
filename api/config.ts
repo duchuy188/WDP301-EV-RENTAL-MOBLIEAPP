@@ -8,7 +8,7 @@ export const API_BASE_URL = 'http://192.168.102.8:5000/api';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000
+  timeout: 60000 // 60 seconds for image upload and OCR processing
 });
 
 // Request interceptor to add auth token
@@ -88,15 +88,24 @@ apiClient.interceptors.response.use(
     }
 
     if (status === 401) {
-      // Token expired or invalid - clear local auth data
-      try {
-        await AsyncStorage.removeItem('token');
-        await AsyncStorage.removeItem('user');
-        await AsyncStorage.removeItem('refreshToken');
-        // Navigate to login screen
-        router.replace('/(auth)/login');
-      } catch (e) {
-        console.error('Error clearing auth data:', e);
+      // Skip redirect for login/register/forgot-password endpoints
+      // (these endpoints naturally return 401 for invalid credentials)
+      const isAuthEndpoint = url?.includes('/auth/login') || 
+                            url?.includes('/auth/register') || 
+                            url?.includes('/auth/forgot-password') ||
+                            url?.includes('/auth/reset-password');
+      
+      if (!isAuthEndpoint) {
+        // Token expired or invalid - clear local auth data
+        try {
+          await AsyncStorage.removeItem('token');
+          await AsyncStorage.removeItem('user');
+          await AsyncStorage.removeItem('refreshToken');
+          // Navigate to login screen
+          router.replace('/(auth)/login');
+        } catch (e) {
+          console.error('Error clearing auth data:', e);
+        }
       }
     }
     return Promise.reject(error);

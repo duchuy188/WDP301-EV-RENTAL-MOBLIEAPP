@@ -25,7 +25,6 @@ import {
   AlertCircle,
   User,
   Car,
-  Bike,
   Gauge,
   Battery,
   Sparkles,
@@ -37,6 +36,7 @@ import {
   Eye,
   X,
 } from 'lucide-react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
 import { useThemeStore } from '@/store/themeStore';
 import { rentalAPI } from '@/api/rentalsAPI';
 import { feedbackAPI } from '@/api/feedbackAPI';
@@ -56,6 +56,8 @@ export default function RentalDetailsScreen() {
   const [existingFeedback, setExistingFeedback] = useState<Feedback | null>(null);
   const [loadingFeedback, setLoadingFeedback] = useState(false);
   const [feedbackModalVisible, setFeedbackModalVisible] = useState(false);
+  const [expandedBeforeNotes, setExpandedBeforeNotes] = useState(false);
+  const [expandedAfterNotes, setExpandedAfterNotes] = useState(false);
 
   useEffect(() => {
     loadRentalDetails();
@@ -97,6 +99,8 @@ export default function RentalDetailsScreen() {
       const feedback = await feedbackAPI.getFeedbackByRental(rentalId);
       console.log('📋 Existing feedback result:', feedback);
       console.log('📋 Feedback type:', feedback?.type);
+      console.log('📋 Feedback category:', feedback?.category);
+      console.log('📋 Feedback staff_role:', feedback?.staff_role);
       console.log('📋 Setting existingFeedback state to:', feedback ? 'Feedback object' : 'null');
       setExistingFeedback(feedback);
     } catch (error) {
@@ -104,6 +108,38 @@ export default function RentalDetailsScreen() {
       setExistingFeedback(null);
     } finally {
       setLoadingFeedback(false);
+    }
+  };
+
+  const getCategoryLabel = (category: string) => {
+    switch (category) {
+      case 'payment':
+        return 'Thanh toán';
+      case 'vehicle':
+        return 'Xe';
+      case 'staff':
+        return 'Nhân viên';
+      case 'service':
+        return 'Dịch vụ';
+      case 'other':
+        return 'Khác';
+      default:
+        return category;
+    }
+  };
+
+  const getConditionLabel = (condition: string) => {
+    switch (condition) {
+      case 'excellent':
+        return 'Xuất sắc';
+      case 'good':
+        return 'Tốt';
+      case 'fair':
+        return 'Khá';
+      case 'poor':
+        return 'Kém';
+      default:
+        return condition;
     }
   };
 
@@ -274,7 +310,7 @@ export default function RentalDetailsScreen() {
 
               {/* Xe */}
               <View style={styles.infoRow}>
-                <Bike size={20} color={colors.primary} />
+                <FontAwesome5 name="motorcycle" size={20} color={colors.primary} />
                 <View style={{ marginLeft: 12, flex: 1 }}>
                   <Text style={styles.infoLabel}>Xe</Text>
                   <Text style={styles.infoValue}>
@@ -460,7 +496,7 @@ export default function RentalDetailsScreen() {
           {/* Tình trạng xe */}
           <View style={styles.section}>
             <View style={styles.sectionTitleRow}>
-              <Bike size={20} color={colors.primary} />
+              <FontAwesome5 name="motorcycle" size={20} color={colors.primary} />
               <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Tình trạng xe</Text>
             </View>
             <View style={styles.conditionContainer}>
@@ -486,18 +522,41 @@ export default function RentalDetailsScreen() {
                 </View>
                 <View style={styles.conditionRow}>
                   <Text style={styles.conditionLabel}>Ngoại thất:</Text>
-                  <Text style={styles.conditionValue}>{rental.vehicle_condition_before?.exterior_condition ?? '-'}</Text>
+                  <Text style={styles.conditionValue}>
+                    {rental.vehicle_condition_before?.exterior_condition 
+                      ? getConditionLabel(rental.vehicle_condition_before.exterior_condition) 
+                      : '-'}
+                  </Text>
                 </View>
                 <View style={styles.conditionRow}>
                   <Text style={styles.conditionLabel}>Nội thất:</Text>
-                  <Text style={styles.conditionValue}>{rental.vehicle_condition_before?.interior_condition ?? '-'}</Text>
+                  <Text style={styles.conditionValue}>
+                    {rental.vehicle_condition_before?.interior_condition 
+                      ? getConditionLabel(rental.vehicle_condition_before.interior_condition) 
+                      : '-'}
+                  </Text>
                 </View>
                 
                 {/* Ghi chú lúc nhận */}
                 {rental.vehicle_condition_before?.notes && (
-                  <View style={[styles.notesCard, { backgroundColor: '#F9FAFB', marginTop: 12 }]}>
+                  <View style={[styles.notesCard, { backgroundColor: '#F9FAFB', marginTop: 12, width: '100%' }]}>
                     <Text style={styles.notesLabel}>Ghi chú:</Text>
-                    <Text style={styles.notesText}>{rental.vehicle_condition_before.notes}</Text>
+                    <Text 
+                      style={styles.notesText} 
+                      numberOfLines={expandedBeforeNotes ? undefined : 3}
+                    >
+                      {rental.vehicle_condition_before.notes}
+                    </Text>
+                    {rental.vehicle_condition_before.notes.length > 100 && (
+                      <TouchableOpacity 
+                        onPress={() => setExpandedBeforeNotes(!expandedBeforeNotes)}
+                        style={{ marginTop: 4 }}
+                      >
+                        <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>
+                          {expandedBeforeNotes ? 'Thu gọn' : '...xem thêm'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
                 
@@ -525,7 +584,7 @@ export default function RentalDetailsScreen() {
                             resizeMode="cover"
                           />
                           <View style={styles.imageOverlay}>
-                            <Eye size={24} color="#fff" />
+                            <Eye size={32} color="#fff" />
                           </View>
                         </TouchableOpacity>
                       ))}
@@ -556,18 +615,41 @@ export default function RentalDetailsScreen() {
                 </View>
                 <View style={styles.conditionRow}>
                   <Text style={styles.conditionLabel}>Ngoại thất:</Text>
-                  <Text style={styles.conditionValue}>{rental.vehicle_condition_after?.exterior_condition ?? '-'}</Text>
+                  <Text style={styles.conditionValue}>
+                    {rental.vehicle_condition_after?.exterior_condition 
+                      ? getConditionLabel(rental.vehicle_condition_after.exterior_condition) 
+                      : '-'}
+                  </Text>
                 </View>
                 <View style={styles.conditionRow}>
                   <Text style={styles.conditionLabel}>Nội thất:</Text>
-                  <Text style={styles.conditionValue}>{rental.vehicle_condition_after?.interior_condition ?? '-'}</Text>
+                  <Text style={styles.conditionValue}>
+                    {rental.vehicle_condition_after?.interior_condition 
+                      ? getConditionLabel(rental.vehicle_condition_after.interior_condition) 
+                      : '-'}
+                  </Text>
                 </View>
                 
                 {/* Ghi chú lúc trả */}
                 {rental.vehicle_condition_after?.notes && (
-                  <View style={[styles.notesCard, { backgroundColor: '#F9FAFB', marginTop: 12 }]}>
+                  <View style={[styles.notesCard, { backgroundColor: '#F9FAFB', marginTop: 12, width: '100%' }]}>
                     <Text style={styles.notesLabel}>Ghi chú:</Text>
-                    <Text style={styles.notesText}>{rental.vehicle_condition_after.notes}</Text>
+                    <Text 
+                      style={styles.notesText} 
+                      numberOfLines={expandedAfterNotes ? undefined : 3}
+                    >
+                      {rental.vehicle_condition_after.notes}
+                    </Text>
+                    {rental.vehicle_condition_after.notes.length > 100 && (
+                      <TouchableOpacity 
+                        onPress={() => setExpandedAfterNotes(!expandedAfterNotes)}
+                        style={{ marginTop: 4 }}
+                      >
+                        <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '600' }}>
+                          {expandedAfterNotes ? 'Thu gọn' : '...xem thêm'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 )}
                 
@@ -595,7 +677,7 @@ export default function RentalDetailsScreen() {
                             resizeMode="cover"
                           />
                           <View style={styles.imageOverlay}>
-                            <Eye size={24} color="#fff" />
+                            <Eye size={32} color="#fff" />
                           </View>
                         </TouchableOpacity>
                       ))}
@@ -813,12 +895,15 @@ export default function RentalDetailsScreen() {
                               setFeedbackModalVisible(false);
                               setImageModalVisible(true);
                             }}
-                            style={{ marginRight: 8 }}
+                            style={styles.imageContainer}
                           >
                             <Image
                               source={{ uri: img }}
                               style={{ width: 100, height: 100, borderRadius: 8 }}
                             />
+                            <View style={styles.imageOverlay}>
+                              <Eye size={32} color="#fff" />
+                            </View>
                           </TouchableOpacity>
                         ))}
                       </ScrollView>
@@ -845,7 +930,16 @@ export default function RentalDetailsScreen() {
                   {existingFeedback?.category && (
                     <View style={styles.feedbackSection}>
                       <Text style={styles.feedbackSectionTitle}>Danh mục</Text>
-                      <Text style={styles.feedbackCommentText}>{existingFeedback.category}</Text>
+                      <Text style={styles.feedbackCommentText}>{getCategoryLabel(existingFeedback.category)}</Text>
+                    </View>
+                  )}
+
+                  {existingFeedback?.staff_role && (
+                    <View style={styles.feedbackSection}>
+                      <Text style={styles.feedbackSectionTitle}>Loại nhân viên</Text>
+                      <Text style={styles.feedbackCommentText}>
+                        {existingFeedback.staff_role === 'pickup' ? 'Nhân viên nhận xe' : 'Nhân viên trả xe'}
+                      </Text>
                     </View>
                   )}
 
@@ -889,12 +983,15 @@ export default function RentalDetailsScreen() {
                               setFeedbackModalVisible(false);
                               setImageModalVisible(true);
                             }}
-                            style={{ marginRight: 8 }}
+                            style={styles.imageContainer}
                           >
                             <Image
                               source={{ uri: img }}
                               style={{ width: 100, height: 100, borderRadius: 8 }}
                             />
+                            <View style={styles.imageOverlay}>
+                              <Eye size={32} color="#fff" />
+                            </View>
                           </TouchableOpacity>
                         ))}
                       </ScrollView>
@@ -1187,6 +1284,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 3,
+    minWidth: 0,
   },
   conditionHeader: {
     flexDirection: 'row',
@@ -1227,6 +1325,7 @@ const styles = StyleSheet.create({
   notesCard: {
     padding: 12,
     borderRadius: 12,
+    flexShrink: 1,
   },
   notesLabel: {
     fontSize: 13,
@@ -1238,6 +1337,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#111827',
     lineHeight: 20,
+    flexWrap: 'wrap',
   },
   reviewButton: {
     flexDirection: 'row',
@@ -1265,9 +1365,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    right: 8,
+    right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 8,
