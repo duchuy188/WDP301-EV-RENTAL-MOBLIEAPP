@@ -27,6 +27,7 @@ import { useAuthStore } from '@/store/authStore';
 import { stationAPI } from '@/api/stationAP';
 import { Station, StationWithDistance } from '@/types/station';
 import { getDistrictCoordinates } from '@/utils/districtCoordinates';
+import { includesIgnoreAccents } from '@/utils/textUtils';
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
@@ -271,13 +272,13 @@ export default function HomeScreen() {
       return;
     }
 
-    const searchLower = searchText.toLowerCase().trim();
+    const searchTerm = searchText.trim();
     const filtered = stations.filter((station) => {
       return (
-        station.name.toLowerCase().includes(searchLower) ||
-        station.address?.toLowerCase().includes(searchLower) ||
-        station.district?.toLowerCase().includes(searchLower) ||
-        station.city?.toLowerCase().includes(searchLower)
+        includesIgnoreAccents(station.name, searchTerm) ||
+        includesIgnoreAccents(station.address || '', searchTerm) ||
+        includesIgnoreAccents(station.district || '', searchTerm) ||
+        includesIgnoreAccents(station.city || '', searchTerm)
       );
     });
     setFilteredStations(filtered);
