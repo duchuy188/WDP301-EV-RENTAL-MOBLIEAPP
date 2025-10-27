@@ -13,6 +13,7 @@ import {
 import { Link, router } from 'expo-router';
 import { Mail, ArrowLeft, CircleCheck as CheckCircle } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { authAPI } from '@/api/authAPI';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -58,11 +59,26 @@ export default function ForgotPasswordScreen() {
     }
 
     setIsLoading(true);
-    // Mock API call
-    setTimeout(() => {
-      setIsLoading(false);
+    
+    try {
+      const response = await authAPI.forgotPassword({ email });
+      
+      if (__DEV__) {
+        console.log('✅ Forgot password response:', response);
+      }
+      
       setIsEmailSent(true);
-    }, 2000);
+    } catch (error: any) {
+      console.error('❌ Forgot password error:', error);
+      
+      const errorMessage = error?.response?.data?.message 
+        || error?.message 
+        || 'Không thể gửi email. Vui lòng thử lại sau.';
+      
+      Alert.alert('Lỗi', errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const styles = StyleSheet.create({
