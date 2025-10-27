@@ -40,6 +40,7 @@ export default function SubmitFeedbackScreen() {
   const [complaintTitle, setComplaintTitle] = useState('');
   const [complaintDescription, setComplaintDescription] = useState('');
   const [complaintCategory, setComplaintCategory] = useState('other');
+  const [staffSubCategory, setStaffSubCategory] = useState<'pickup' | 'return' | ''>('');
   const [complaintComment, setComplaintComment] = useState('');
 
   // Image states (shared for both rating and complaint)
@@ -91,6 +92,10 @@ export default function SubmitFeedbackScreen() {
     }
     if (!complaintDescription.trim()) {
       Alert.alert('Thiếu thông tin', 'Vui lòng mô tả chi tiết vấn đề');
+      return false;
+    }
+    if (complaintCategory === 'staff' && !staffSubCategory) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng chọn loại nhân viên (nhận xe hoặc trả xe)');
       return false;
     }
     return true;
@@ -317,6 +322,12 @@ export default function SubmitFeedbackScreen() {
         formData.append('title', complaintTitle);
         formData.append('description', complaintDescription);
         formData.append('category', complaintCategory);
+        if (complaintCategory === 'staff' && staffSubCategory) {
+          console.log('✅ Adding staff_role to FormData:', staffSubCategory);
+          formData.append('staff_role', staffSubCategory);
+        } else if (complaintCategory === 'staff') {
+          console.log('⚠️ Category is staff but no staffSubCategory selected!');
+        }
         if (complaintComment) formData.append('comment', complaintComment);
         
         // Thêm images
@@ -333,7 +344,7 @@ export default function SubmitFeedbackScreen() {
         await feedbackAPI.createFeedback(formData);
       } else {
         // Không có ảnh, gửi JSON
-        const payload = {
+        const payload: any = {
           rental_id: rentalId,
           type: 'complaint',
           title: complaintTitle,
@@ -341,6 +352,13 @@ export default function SubmitFeedbackScreen() {
           category: complaintCategory,
           comment: complaintComment,
         };
+
+        if (complaintCategory === 'staff' && staffSubCategory) {
+          console.log('✅ Adding staff_role to JSON:', staffSubCategory);
+          payload.staff_role = staffSubCategory;
+        } else if (complaintCategory === 'staff') {
+          console.log('⚠️ Category is staff but no staffSubCategory selected!');
+        }
 
         console.log('📤 Sending JSON payload:', payload);
         await feedbackAPI.createFeedback(payload);
@@ -461,7 +479,13 @@ export default function SubmitFeedbackScreen() {
                     borderColor: colors.primary,
                   },
                 ]}
-                onPress={() => setComplaintCategory(cat.value)}
+                onPress={() => {
+                  setComplaintCategory(cat.value);
+                  // Reset staff sub-category when changing category
+                  if (cat.value !== 'staff') {
+                    setStaffSubCategory('');
+                  }
+                }}
               >
                 <Text
                   style={[
@@ -475,6 +499,53 @@ export default function SubmitFeedbackScreen() {
             ))}
           </View>
         </View>
+
+        {/* Staff Sub-Category */}
+        {complaintCategory === 'staff' && (
+          <View style={styles.inputContainer}>
+            <Text style={styles.inputLabel}>Loại nhân viên *</Text>
+            <View style={styles.categoriesContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.categoryChip,
+                  staffSubCategory === 'pickup' && {
+                    backgroundColor: colors.primary,
+                    borderColor: colors.primary,
+                  },
+                ]}
+                onPress={() => setStaffSubCategory('pickup')}
+              >
+                <Text
+                  style={[
+                    styles.categoryChipText,
+                    staffSubCategory === 'pickup' && { color: '#fff' },
+                  ]}
+                >
+                  Nhân viên nhận xe
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.categoryChip,
+                  staffSubCategory === 'return' && {
+                    backgroundColor: colors.primary,
+                    borderColor: colors.primary,
+                  },
+                ]}
+                onPress={() => setStaffSubCategory('return')}
+              >
+                <Text
+                  style={[
+                    styles.categoryChipText,
+                    staffSubCategory === 'return' && { color: '#fff' },
+                  ]}
+                >
+                  Nhân viên trả xe
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         <View style={styles.inputContainer}>
           <Text style={styles.inputLabel}>Mô tả chi tiết *</Text>

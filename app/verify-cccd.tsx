@@ -238,7 +238,7 @@ export default function VerifyCCCDScreen() {
     const numbers = text.replace(/\D/g, '');
     const limited = numbers.slice(0, 8);
     let formatted = limited;
-    if (limited.length >= 2) {
+    if (limited.length > 3) {
       formatted = limited.slice(0, 2);
       if (limited.length >= 4) {
         formatted += '/' + limited.slice(2, 4) + '/' + limited.slice(4);

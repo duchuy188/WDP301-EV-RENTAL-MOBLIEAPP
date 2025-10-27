@@ -87,7 +87,7 @@ export default function BookingScreen() {
   };
 
   const requiresDeposit = (): boolean => {
-    return calculateTotalDays() >= 2 && depositPercentage > 0;
+    return calculateTotalDays() > 3 && depositPercentage > 0;
   };
 
   const handleBooking = async () => {

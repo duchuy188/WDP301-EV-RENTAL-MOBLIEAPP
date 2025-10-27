@@ -24,3 +24,8 @@ export async function getConversations(limit?: number): Promise<ChatbotAPIRespon
     const res = await apiClient.get<ChatbotAPIResponse>('/chatbot/conversations', { params });
     return res.data;
 }
+
+export async function getSuggestions(): Promise<ChatbotAPIResponse> {
+    const res = await apiClient.get<ChatbotAPIResponse>('/chatbot/suggestions');
+    return res.data;
+}

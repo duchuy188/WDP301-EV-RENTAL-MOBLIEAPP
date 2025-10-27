@@ -24,6 +24,8 @@ export interface ChatbotAPIResponse {
     conversations?: any[];
   };
   message?: string;
+  suggestions?: string[];
+  actions?: string[];
 }
 
 export interface ChatHistoryResponse {

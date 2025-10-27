@@ -99,6 +99,8 @@ export default function RentalDetailsScreen() {
       const feedback = await feedbackAPI.getFeedbackByRental(rentalId);
       console.log('📋 Existing feedback result:', feedback);
       console.log('📋 Feedback type:', feedback?.type);
+      console.log('📋 Feedback category:', feedback?.category);
+      console.log('📋 Feedback staff_role:', feedback?.staff_role);
       console.log('📋 Setting existingFeedback state to:', feedback ? 'Feedback object' : 'null');
       setExistingFeedback(feedback);
     } catch (error) {
@@ -106,6 +108,38 @@ export default function RentalDetailsScreen() {
       setExistingFeedback(null);
     } finally {
       setLoadingFeedback(false);
+    }
+  };
+
+  const getCategoryLabel = (category: string) => {
+    switch (category) {
+      case 'payment':
+        return 'Thanh toán';
+      case 'vehicle':
+        return 'Xe';
+      case 'staff':
+        return 'Nhân viên';
+      case 'service':
+        return 'Dịch vụ';
+      case 'other':
+        return 'Khác';
+      default:
+        return category;
+    }
+  };
+
+  const getConditionLabel = (condition: string) => {
+    switch (condition) {
+      case 'excellent':
+        return 'Xuất sắc';
+      case 'good':
+        return 'Tốt';
+      case 'fair':
+        return 'Khá';
+      case 'poor':
+        return 'Kém';
+      default:
+        return condition;
     }
   };
 
@@ -488,11 +522,19 @@ export default function RentalDetailsScreen() {
                 </View>
                 <View style={styles.conditionRow}>
                   <Text style={styles.conditionLabel}>Ngoại thất:</Text>
-                  <Text style={styles.conditionValue}>{rental.vehicle_condition_before?.exterior_condition ?? '-'}</Text>
+                  <Text style={styles.conditionValue}>
+                    {rental.vehicle_condition_before?.exterior_condition 
+                      ? getConditionLabel(rental.vehicle_condition_before.exterior_condition) 
+                      : '-'}
+                  </Text>
                 </View>
                 <View style={styles.conditionRow}>
                   <Text style={styles.conditionLabel}>Nội thất:</Text>
-                  <Text style={styles.conditionValue}>{rental.vehicle_condition_before?.interior_condition ?? '-'}</Text>
+                  <Text style={styles.conditionValue}>
+                    {rental.vehicle_condition_before?.interior_condition 
+                      ? getConditionLabel(rental.vehicle_condition_before.interior_condition) 
+                      : '-'}
+                  </Text>
                 </View>
                 
                 {/* Ghi chú lúc nhận */}
@@ -542,7 +584,7 @@ export default function RentalDetailsScreen() {
                             resizeMode="cover"
                           />
                           <View style={styles.imageOverlay}>
-                            <Eye size={24} color="#fff" />
+                            <Eye size={32} color="#fff" />
                           </View>
                         </TouchableOpacity>
                       ))}
@@ -573,11 +615,19 @@ export default function RentalDetailsScreen() {
                 </View>
                 <View style={styles.conditionRow}>
                   <Text style={styles.conditionLabel}>Ngoại thất:</Text>
-                  <Text style={styles.conditionValue}>{rental.vehicle_condition_after?.exterior_condition ?? '-'}</Text>
+                  <Text style={styles.conditionValue}>
+                    {rental.vehicle_condition_after?.exterior_condition 
+                      ? getConditionLabel(rental.vehicle_condition_after.exterior_condition) 
+                      : '-'}
+                  </Text>
                 </View>
                 <View style={styles.conditionRow}>
                   <Text style={styles.conditionLabel}>Nội thất:</Text>
-                  <Text style={styles.conditionValue}>{rental.vehicle_condition_after?.interior_condition ?? '-'}</Text>
+                  <Text style={styles.conditionValue}>
+                    {rental.vehicle_condition_after?.interior_condition 
+                      ? getConditionLabel(rental.vehicle_condition_after.interior_condition) 
+                      : '-'}
+                  </Text>
                 </View>
                 
                 {/* Ghi chú lúc trả */}
@@ -627,7 +677,7 @@ export default function RentalDetailsScreen() {
                             resizeMode="cover"
                           />
                           <View style={styles.imageOverlay}>
-                            <Eye size={24} color="#fff" />
+                            <Eye size={32} color="#fff" />
                           </View>
                         </TouchableOpacity>
                       ))}
@@ -852,7 +902,7 @@ export default function RentalDetailsScreen() {
                               style={{ width: 100, height: 100, borderRadius: 8 }}
                             />
                             <View style={styles.imageOverlay}>
-                              <Eye size={24} color="#fff" />
+                              <Eye size={32} color="#fff" />
                             </View>
                           </TouchableOpacity>
                         ))}
@@ -880,7 +930,16 @@ export default function RentalDetailsScreen() {
                   {existingFeedback?.category && (
                     <View style={styles.feedbackSection}>
                       <Text style={styles.feedbackSectionTitle}>Danh mục</Text>
-                      <Text style={styles.feedbackCommentText}>{existingFeedback.category}</Text>
+                      <Text style={styles.feedbackCommentText}>{getCategoryLabel(existingFeedback.category)}</Text>
+                    </View>
+                  )}
+
+                  {existingFeedback?.staff_role && (
+                    <View style={styles.feedbackSection}>
+                      <Text style={styles.feedbackSectionTitle}>Loại nhân viên</Text>
+                      <Text style={styles.feedbackCommentText}>
+                        {existingFeedback.staff_role === 'pickup' ? 'Nhân viên nhận xe' : 'Nhân viên trả xe'}
+                      </Text>
                     </View>
                   )}
 
@@ -931,7 +990,7 @@ export default function RentalDetailsScreen() {
                               style={{ width: 100, height: 100, borderRadius: 8 }}
                             />
                             <View style={styles.imageOverlay}>
-                              <Eye size={24} color="#fff" />
+                              <Eye size={32} color="#fff" />
                             </View>
                           </TouchableOpacity>
                         ))}
@@ -1306,9 +1365,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    right: 8,
+    right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 8,

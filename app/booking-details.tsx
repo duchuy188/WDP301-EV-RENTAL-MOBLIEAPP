@@ -345,8 +345,8 @@ export default function BookingDetailsScreen() {
       return booking.deposit_amount;
     }
     
-    // Nếu thuê >= 2 ngày, tính 50% tổng giá
-    if (booking.total_days >= 2) {
+    // Nếu thuê > 3 ngày, tính 50% tổng giá
+    if (booking.total_days > 3) {
       return booking.total_price * 0.5;
     }
     
