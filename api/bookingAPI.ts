@@ -28,5 +28,10 @@ export const bookingAPI = {
     return response.data;
   },
 
+  // Get user statistics (total completed, total spent)
+  getUserStats: async () => {
+    const response = await apiClient.get('/bookings/user/stats');
+    return response.data;
+  },
 
 };

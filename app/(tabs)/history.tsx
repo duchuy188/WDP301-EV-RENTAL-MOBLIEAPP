@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { Calendar, MapPin, Clock, DollarSign, TrendingUp, ChevronRight } from 'lucide-react-native';
+import { Calendar, MapPin, Clock, DollarSign, TrendingUp, ChevronRight, ChevronLeft } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { useThemeStore } from '@/store/themeStore';
@@ -28,13 +28,60 @@ export default function HistoryScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalSpentAll, setTotalSpentAll] = useState(0);
+  const [totalCompletedAll, setTotalCompletedAll] = useState(0);
+  const [totalDistanceAll, setTotalDistanceAll] = useState(0);
+  const [allLoadedBookings, setAllLoadedBookings] = useState<any[]>([]); // Store all loaded bookings across pages
 
   useEffect(() => {
     loadBookings();
+    loadStats();
   }, []);
+
+  const loadStats = async () => {
+    try {
+      // Fetch ALL bookings to calculate stats (same as Profile tab)
+      const allResponse = await bookingAPI.getBookings({ 
+        page: 1, 
+        limit: 1000 // Get all bookings at once for stats calculation
+      });
+      
+      const allBookings = allResponse.bookings || [];
+      const completedBookings = allBookings.filter(b => b.status === 'completed');
+      
+      // Calculate stats from ALL bookings
+      const totalCompleted = completedBookings.length;
+      const totalSpent = completedBookings.reduce((sum, booking) => {
+        return sum + (booking.final_amount || booking.total_price || 0);
+      }, 0);
+      
+      // Calculate total distance (estimate: 30km per day)
+      const totalDistance = completedBookings.reduce((sum, booking) => {
+        const days = booking.total_days || 1;
+        const estimatedDistance = days * 30; // 30km per day
+        return sum + estimatedDistance;
+      }, 0);
+      
+      setTotalCompletedAll(totalCompleted);
+      setTotalSpentAll(totalSpent);
+      setTotalDistanceAll(Math.round(totalDistance));
+      
+      console.log('📊 Stats calculated:', {
+        totalBookings: allBookings.length,
+        totalCompleted,
+        totalSpent
+      });
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    }
+  };
 
   const loadBookings = async (page: number = 1) => {
     try {
+      console.log('📖 Loading bookings - Page:', page);
+      
       if (page === 1) {
         setLoading(true);
       } else {
@@ -43,10 +90,22 @@ export default function HistoryScreen() {
       
       const response = await bookingAPI.getBookings({ page, limit: 10 });
       
+      console.log('✅ Bookings loaded:', {
+        page,
+        count: response.bookings?.length || 0,
+        pagination: response.pagination,
+        totalBookings: bookings.length,
+        totalSpentFromAPI: response.totalSpent,
+        totalCompletedFromAPI: response.totalCompleted,
+        fullResponse: JSON.stringify(response, null, 2)
+      });
+      
       if (page === 1) {
         setBookings(response.bookings || []);
+        setAllLoadedBookings(response.bookings || []);
       } else {
-        setBookings(prev => [...prev, ...(response.bookings || [])]);
+        setBookings(response.bookings || []); // Only show current page
+        setAllLoadedBookings(prev => [...prev, ...(response.bookings || [])]); // Accumulate all
       }
       
       // Check if there are more items to load
@@ -55,8 +114,28 @@ export default function HistoryScreen() {
       setHasMore(hasMoreItems);
       setCurrentPage(page);
       
+      // Set total pages and records from pagination
+      if (response.pagination) {
+        setTotalPages(response.pagination.total || 1);
+        setTotalRecords(response.pagination.totalRecords || 0);
+      }
+      
+      // Set totals from response if available
+      if (response.totalSpent !== undefined) {
+        setTotalSpentAll(response.totalSpent);
+      }
+      if (response.totalCompleted !== undefined) {
+        setTotalCompletedAll(response.totalCompleted);
+      }
+      
+      console.log('📊 State updated:', {
+        totalBookingsNow: (page === 1 ? response.bookings?.length : bookings.length + (response.bookings?.length || 0)),
+        hasMore: hasMoreItems,
+        currentPage: page
+      });
+      
     } catch (error) {
-      console.error('Error loading bookings:', error);
+      console.error('❌ Error loading bookings:', error);
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -67,26 +146,24 @@ export default function HistoryScreen() {
     setRefreshing(true);
     setCurrentPage(1);
     setHasMore(true);
+    setAllLoadedBookings([]); // Reset accumulated bookings
     await loadBookings(1);
     setRefreshing(false);
   };
 
-  const handleLoadMore = () => {
-    if (!loadingMore && hasMore) {
-      loadBookings(currentPage + 1);
-    }
-  };
 
-  const isCloseToBottom = ({layoutMeasurement, contentOffset, contentSize}: any) => {
-    const paddingToBottom = 20;
-    return layoutMeasurement.height + contentOffset.y >=
-      contentSize.height - paddingToBottom;
-  };
-
-  // Calculate analytics from completed bookings
-  const completedBookings = bookings.filter(b => b.status === 'completed');
-  const totalSpent = completedBookings.reduce((sum, booking) => sum + (booking.final_amount || booking.total_price || 0), 0);
-  const totalTrips = completedBookings.length;
+  // Calculate stats from ALL loaded bookings (across all pages)
+  const totalTrips = totalRecords;
+  
+  // Calculate from ALL loaded bookings as fallback
+  const completedFromLoaded = allLoadedBookings.filter(b => b.status === 'completed').length;
+  const calculatedSpent = allLoadedBookings
+    .filter(b => b.status === 'completed')
+    .reduce((sum, booking) => sum + (booking.final_amount || booking.total_price || 0), 0);
+  
+  // Use API data if available, otherwise use calculated from ALL loaded bookings
+  const completedBookingsCount = totalCompletedAll || completedFromLoaded;
+  const totalSpent = totalSpentAll || calculatedSpent;
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('vi-VN', {
@@ -173,6 +250,7 @@ export default function HistoryScreen() {
       gap: 12,
       marginTop: 50,
       marginBottom: 24,
+      paddingHorizontal: 4,
     },
     statCard: {
       backgroundColor: colors.surface,
@@ -180,7 +258,7 @@ export default function HistoryScreen() {
       padding: 16,
       borderWidth: 1,
       borderColor: colors.border,
-      width: (width - 24) / 2,
+      width: (width - 32) / 2,
       alignItems: 'center',
     },
     statIcon: {
@@ -282,6 +360,69 @@ export default function HistoryScreen() {
       borderTopWidth: 1,
       borderTopColor: colors.border,
     },
+    paginationWrapper: {
+      marginTop: 16,
+      marginBottom: 12,
+    },
+    paginationContainer: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 12,
+      gap: 20,
+    },
+    pageButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    pageButtonDisabled: {
+      backgroundColor: colors.surface,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      shadowOpacity: 0,
+      elevation: 0,
+    },
+    pageInfo: {
+      backgroundColor: colors.surface,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      minWidth: 80,
+      alignItems: 'center',
+    },
+    pageText: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+    },
+    currentPage: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: colors.primary,
+      fontFamily: 'Inter-Bold',
+    },
+    pageSeparator: {
+      fontSize: 16,
+      fontWeight: '400',
+      color: colors.textSecondary,
+      fontFamily: 'Inter-Regular',
+    },
+    totalPage: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      fontFamily: 'Inter-SemiBold',
+    },
   });
 
   return (
@@ -292,17 +433,11 @@ export default function HistoryScreen() {
         </Animated.View>
 
   <ScrollView 
-          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 4 }} 
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 4, paddingBottom: 20 }} 
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />
           }
-          onScroll={({nativeEvent}) => {
-            if (isCloseToBottom(nativeEvent)) {
-              handleLoadMore();
-            }
-          }}
-          scrollEventThrottle={400}
         >
         {/* Stats Overview */}
         <Animated.View entering={FadeInDown.delay(200)} style={styles.statsGrid}>
@@ -312,6 +447,22 @@ export default function HistoryScreen() {
             </View>
             <Text style={styles.statValue}>{totalTrips}</Text>
             <Text style={styles.statLabel}>Tổng chuyến đi</Text>
+          </View>
+          
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: '#10B981' + '20' }]}>
+              <Calendar size={20} color="#10B981" />
+            </View>
+            <Text style={styles.statValue}>{completedBookingsCount}</Text>
+            <Text style={styles.statLabel}>Đã hoàn thành</Text>
+          </View>
+          
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: '#F59E0B' + '20' }]}>
+              <MapPin size={20} color="#F59E0B" />
+            </View>
+            <Text style={styles.statValue}>{totalDistanceAll}</Text>
+            <Text style={styles.statLabel}>Tổng KM</Text>
           </View>
           
           <View style={styles.statCard}>
@@ -384,21 +535,65 @@ export default function HistoryScreen() {
             </View>
           )}
           
-          {/* Load More Indicator */}
-          {loadingMore && (
-            <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-              <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={{ color: colors.textSecondary, marginTop: 8, fontSize: 12 }}>
-                Đang tải thêm...
-              </Text>
+          {/* Pagination Controls */}
+          {!loading && bookings.length > 0 && (
+            <View style={styles.paginationWrapper}>
+              <View style={styles.paginationContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.pageButton,
+                    currentPage === 1 && styles.pageButtonDisabled
+                  ]}
+                  onPress={() => {
+                    if (currentPage > 1) {
+                      loadBookings(currentPage - 1);
+                    }
+                  }}
+                  disabled={currentPage === 1}
+                  activeOpacity={0.7}
+                >
+                  <ChevronLeft 
+                    size={20} 
+                    color={currentPage === 1 ? colors.textSecondary : '#fff'} 
+                  />
+                </TouchableOpacity>
+
+                <View style={styles.pageInfo}>
+                  <Text style={styles.pageText}>
+                    <Text style={styles.currentPage}>{currentPage}</Text>
+                    <Text style={styles.pageSeparator}> / </Text>
+                    <Text style={styles.totalPage}>{totalPages}</Text>
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.pageButton,
+                    !hasMore && styles.pageButtonDisabled
+                  ]}
+                  onPress={() => {
+                    if (hasMore) {
+                      loadBookings(currentPage + 1);
+                    }
+                  }}
+                  disabled={!hasMore}
+                  activeOpacity={0.7}
+                >
+                  <ChevronRight 
+                    size={20} 
+                    color={!hasMore ? colors.textSecondary : '#fff'} 
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
           )}
           
-          {/* End of List Message */}
-          {!loading && bookings.length > 0 && !hasMore && (
+          {/* Loading Indicator */}
+          {(loading || loadingMore) && (
             <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
-                Đã hiển thị tất cả {bookings.length} đơn đặt xe
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={{ color: colors.textSecondary, marginTop: 8, fontSize: 12 }}>
+                Đang tải...
               </Text>
             </View>
           )}

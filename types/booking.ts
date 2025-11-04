@@ -97,4 +97,6 @@ export interface BookingRequest {
     message: string;
     bookings: Booking[];
     pagination: BookingPagination;
+    totalSpent?: number;
+    totalCompleted?: number;
   }
