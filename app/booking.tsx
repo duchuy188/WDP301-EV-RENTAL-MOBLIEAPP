@@ -10,10 +10,11 @@ import {
   Platform,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { ArrowLeft, Calendar, Clock, MapPin, FileText } from 'lucide-react-native';
+import { ArrowLeft, Calendar, Clock, MapPin, FileText, CreditCard } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useThemeStore } from '@/store/themeStore';
 import { bookingAPI } from '@/api/bookingAPI';
+import { PaymentMethod } from '@/types/payment';
 
 export default function BookingScreen() {
   const { colors } = useThemeStore();
@@ -31,9 +32,22 @@ export default function BookingScreen() {
   // Booking form state
   const [startDate, setStartDate] = useState(new Date());
   const [endDate, setEndDate] = useState(new Date(Date.now() + 24 * 60 * 60 * 1000)); // Tomorrow
-  const [pickupTime, setPickupTime] = useState(new Date());
+  
+  // Set default pickup time to at least 1 hour from now
+  const getDefaultPickupTime = () => {
+    const now = new Date();
+    now.setHours(now.getHours() + 1);
+    now.setMinutes(0); // Round to the hour
+    now.setSeconds(0);
+    return now;
+  };
+  const [pickupTime, setPickupTime] = useState(getDefaultPickupTime());
   const [specialRequests, setSpecialRequests] = useState('');
   const [notes, setNotes] = useState('');
+  
+  // Payment state - Always VNPay
+  const paymentMethod: PaymentMethod = 'vnpay'; // Fixed to VNPay only
+  const HOLDING_FEE = 50000; // 50,000 VND
   
   // DatePicker visibility
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
@@ -46,7 +60,7 @@ export default function BookingScreen() {
     return date.toLocaleDateString('vi-VN', { 
       day: '2-digit', 
       month: '2-digit', 
-      year: 'numeric' 
+      year: 'numeric'
     });
   };
 
@@ -92,6 +106,31 @@ export default function BookingScreen() {
 
   const handleBooking = async () => {
     // Validation
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const selectedStartDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+    
+    // Check if start date is in the past
+    if (selectedStartDate < today) {
+      Alert.alert('Lỗi', 'Ngày nhận xe không thể là ngày trong quá khứ');
+      return;
+    }
+    
+    // Check if start date is today and pickup time is in the past
+    if (selectedStartDate.getTime() === today.getTime()) {
+      const currentTime = now.getHours() * 60 + now.getMinutes();
+      const selectedTime = pickupTime.getHours() * 60 + pickupTime.getMinutes();
+      const oneHourFromNow = currentTime + 60; // Require at least 1 hour advance booking
+      
+      if (selectedTime < oneHourFromNow) {
+        Alert.alert(
+          'Lỗi', 
+          'Giờ nhận xe phải ít nhất 1 tiếng sau thời điểm hiện tại'
+        );
+        return;
+      }
+    }
+    
     if (endDate <= startDate) {
       Alert.alert('Lỗi', 'Ngày trả xe phải sau ngày nhận xe');
       return;
@@ -117,7 +156,9 @@ export default function BookingScreen() {
       
       const response = await bookingAPI.postBooking(bookingData);
       
-      console.log('Booking response:', response);
+      console.log('Booking response:', JSON.stringify(response, null, 2));
+      console.log('Response.booking:', response.booking);
+      console.log('Response keys:', Object.keys(response));
 
       if (response.requiresKYC) {
         Alert.alert(
@@ -131,23 +172,68 @@ export default function BookingScreen() {
             }
           ]
         );
-      } else {
-        Alert.alert(
-          'Đặt xe thành công! 🎉',
-          `Mã đặt xe: ${response.booking.code}\nVui lòng đến trạm để nhận xe`,
-          [
-            { 
-              text: 'Xem chi tiết', 
-              onPress: () => {
-                router.replace({
-                  pathname: '/booking-details',
-                  params: { id: response.booking._id }
-                });
-              }
-            }
-          ]
-        );
+        return;
       }
+
+      // Handle requiresPayment flag (backend returns payment URL)
+      const responseData: any = response;
+      
+      if (responseData.requiresPayment && responseData.data) {
+        // Backend requires payment first before creating booking
+        const { holding_fee, pending_booking_id, temp_id } = responseData.data;
+        
+        if (holding_fee && holding_fee.payment_url) {
+          // Navigate to VNPay WebView with the provided payment URL
+          router.push({
+            pathname: '/vnpay-payment',
+            params: {
+              paymentUrl: holding_fee.payment_url,
+              bookingId: pending_booking_id || temp_id,
+              amount: holding_fee.amount.toString()
+            }
+          });
+          return;
+        }
+      }
+
+      // Handle normal booking response (booking created immediately)
+      const createdBooking = response.booking || responseData.data?.booking || responseData.data || responseData;
+      
+      // Check if booking was created successfully
+      if (!createdBooking || !createdBooking._id) {
+        console.error('Invalid booking response structure:', {
+          response,
+          createdBooking,
+          hasBooking: !!response.booking,
+          hasData: !!(responseData.data),
+        });
+        Alert.alert(
+          'Lỗi',
+          'Không thể tạo đơn đặt xe. Vui lòng thử lại.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Booking successful - show success message
+      const bookingId = createdBooking._id;
+      const bookingCode = createdBooking.code;
+
+      Alert.alert(
+        'Đặt xe thành công! 🎉',
+        `Mã đặt xe: ${bookingCode}\n\nVui lòng đến trạm để nhận xe.`,
+        [
+          { 
+            text: 'Xem chi tiết', 
+            onPress: () => {
+              router.replace({
+                pathname: '/booking-details',
+                params: { id: bookingId }
+              });
+            }
+          }
+        ]
+      );
     } catch (error: any) {
       console.error('Booking error:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Không thể đặt xe';
@@ -259,6 +345,34 @@ export default function BookingScreen() {
             </View>
           </View>
 
+          {/* Payment Method */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Phương thức thanh toán phí giữ chỗ</Text>
+            <Text style={styles.sectionDescription}>
+              Phí giữ chỗ: {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(HOLDING_FEE)}
+            </Text>
+            
+            {/* VNPay Option */}
+            <View style={[styles.paymentOption, styles.paymentOptionSelected, { borderColor: colors.primary }]}>
+              <View style={styles.paymentOptionLeft}>
+                <View style={[styles.paymentIcon, { backgroundColor: colors.primary }]}>
+                  <CreditCard size={20} color="#fff" />
+                </View>
+                <View style={styles.paymentInfo}>
+                  <Text style={[styles.paymentName, { color: colors.primary, fontWeight: '700' }]}>
+                    Thanh toán VNPay
+                  </Text>
+                  <Text style={styles.paymentDescription}>
+                    Thanh toán ngay qua VNPay
+                  </Text>
+                </View>
+              </View>
+              <View style={[styles.radioButton, styles.radioButtonSelected, { borderColor: colors.primary }]}>
+                <View style={[styles.radioButtonInner, { backgroundColor: colors.primary }]} />
+              </View>
+            </View>
+          </View>
+
           {/* Price Summary */}
           <View style={[styles.section, styles.priceSummary]}>
             <View style={styles.priceRow}>
@@ -310,7 +424,23 @@ export default function BookingScreen() {
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={(event, selectedDate) => {
             setShowStartDatePicker(false);
-            if (selectedDate) setStartDate(selectedDate);
+            if (selectedDate) {
+              setStartDate(selectedDate);
+              
+              // If selected date is today, ensure pickup time is at least 1 hour from now
+              const today = new Date();
+              const isToday = selectedDate.getDate() === today.getDate() &&
+                            selectedDate.getMonth() === today.getMonth() &&
+                            selectedDate.getFullYear() === today.getFullYear();
+              
+              if (isToday) {
+                const minPickupTime = new Date();
+                minPickupTime.setHours(minPickupTime.getHours() + 1);
+                minPickupTime.setMinutes(0);
+                minPickupTime.setSeconds(0);
+                setPickupTime(minPickupTime);
+              }
+            }
           }}
           minimumDate={new Date()}
           accentColor={colors.primary}
@@ -340,7 +470,30 @@ export default function BookingScreen() {
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={(event, selectedTime) => {
             setShowPickupTimePicker(false);
-            if (selectedTime) setPickupTime(selectedTime);
+            if (selectedTime) {
+              // Validate if start date is today
+              const today = new Date();
+              const isToday = startDate.getDate() === today.getDate() &&
+                            startDate.getMonth() === today.getMonth() &&
+                            startDate.getFullYear() === today.getFullYear();
+              
+              if (isToday) {
+                const currentTime = today.getHours() * 60 + today.getMinutes();
+                const selectedTimeMinutes = selectedTime.getHours() * 60 + selectedTime.getMinutes();
+                const oneHourFromNow = currentTime + 60;
+                
+                if (selectedTimeMinutes < oneHourFromNow) {
+                  Alert.alert(
+                    'Lỗi',
+                    'Giờ nhận xe phải ít nhất 1 tiếng sau thời điểm hiện tại',
+                    [{ text: 'OK' }]
+                  );
+                  return;
+                }
+              }
+              
+              setPickupTime(selectedTime);
+            }
           }}
           accentColor={colors.primary}
           themeVariant="light"
@@ -388,6 +541,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
     marginBottom: 12,
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 16,
   },
   infoCard: {
     backgroundColor: '#fff',
@@ -518,6 +676,71 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  // Payment Method Styles
+  paymentOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  paymentOptionSelected: {
+    borderWidth: 2,
+    backgroundColor: '#F0F9FF',
+  },
+  paymentOptionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  paymentIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#F0F9FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  paymentInfo: {
+    flex: 1,
+  },
+  paymentName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  paymentDescription: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  radioButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  radioButtonSelected: {
+    borderWidth: 2,
+  },
+  radioButtonInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
 });
 

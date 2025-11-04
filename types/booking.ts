@@ -31,6 +31,15 @@ export interface BookingRequest {
     phone: string;
   }
   
+  // Holding Fee Info
+  export interface HoldingFee {
+    amount: number;
+    status: 'unpaid' | 'paid';
+    payment_method: 'vnpay' | 'cash' | '';
+    paid_at?: string | null;
+    payment_id?: string | null;
+  }
+
   // Thông tin chi tiết booking trả về từ API
   export interface Booking {
     _id: string;
@@ -48,6 +57,7 @@ export interface BookingRequest {
     total_days: number;
     total_price: number;
     deposit_amount: number;
+    holding_fee?: HoldingFee;
     late_fee: number;
     damage_fee: number;
     other_fees: number;

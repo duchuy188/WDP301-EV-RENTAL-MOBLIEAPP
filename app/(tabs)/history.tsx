@@ -25,27 +25,62 @@ export default function HistoryScreen() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
     loadBookings();
   }, []);
 
-  const loadBookings = async () => {
+  const loadBookings = async (page: number = 1) => {
     try {
-      setLoading(true);
-      const response = await bookingAPI.getBookings({ page: 1, limit: 10 });
-      setBookings(response.bookings || []);
+      if (page === 1) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+      
+      const response = await bookingAPI.getBookings({ page, limit: 10 });
+      
+      if (page === 1) {
+        setBookings(response.bookings || []);
+      } else {
+        setBookings(prev => [...prev, ...(response.bookings || [])]);
+      }
+      
+      // Check if there are more items to load
+      const hasMoreItems = response.pagination && 
+                          response.pagination.current < response.pagination.total;
+      setHasMore(hasMoreItems);
+      setCurrentPage(page);
+      
     } catch (error) {
       console.error('Error loading bookings:', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadBookings();
+    setCurrentPage(1);
+    setHasMore(true);
+    await loadBookings(1);
     setRefreshing(false);
+  };
+
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMore) {
+      loadBookings(currentPage + 1);
+    }
+  };
+
+  const isCloseToBottom = ({layoutMeasurement, contentOffset, contentSize}: any) => {
+    const paddingToBottom = 20;
+    return layoutMeasurement.height + contentOffset.y >=
+      contentSize.height - paddingToBottom;
   };
 
   // Calculate analytics from completed bookings
@@ -262,6 +297,12 @@ export default function HistoryScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />
           }
+          onScroll={({nativeEvent}) => {
+            if (isCloseToBottom(nativeEvent)) {
+              handleLoadMore();
+            }
+          }}
+          scrollEventThrottle={400}
         >
         {/* Stats Overview */}
         <Animated.View entering={FadeInDown.delay(200)} style={styles.statsGrid}>
@@ -339,6 +380,25 @@ export default function HistoryScreen() {
             <View style={{ padding: 20, alignItems: 'center' }}>
               <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>
                 Chưa có đơn đặt xe nào
+              </Text>
+            </View>
+          )}
+          
+          {/* Load More Indicator */}
+          {loadingMore && (
+            <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={{ color: colors.textSecondary, marginTop: 8, fontSize: 12 }}>
+                Đang tải thêm...
+              </Text>
+            </View>
+          )}
+          
+          {/* End of List Message */}
+          {!loading && bookings.length > 0 && !hasMore && (
+            <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+              <Text style={{ color: colors.textSecondary, fontSize: 12 }}>
+                Đã hiển thị tất cả {bookings.length} đơn đặt xe
               </Text>
             </View>
           )}
