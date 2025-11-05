@@ -619,6 +619,31 @@ export default function BookingDetailsScreen() {
                   <Text style={styles.contractButtonText}>Xem Chi tiết thuê xe</Text>
                 </TouchableOpacity>
               </View>
+              
+              {/* Rebook Button for Completed Bookings */}
+              {booking.status === 'completed' && (
+                <TouchableOpacity
+                  style={[styles.rebookButton, { backgroundColor: colors.primary }]}
+                  onPress={() => {
+                    router.push({
+                      pathname: '/booking',
+                      params: {
+                        brand: booking.vehicle_id.brand,
+                        model: booking.vehicle_id.model,
+                        color: booking.vehicle_id.color,
+                        stationId: booking.station_id._id,
+                        stationName: booking.station_id.name,
+                        pricePerDay: booking.price_per_day.toString(),
+                        depositPercentage: '0',
+                      }
+                    });
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <FontAwesome5 name="redo" size={18} color="#fff" />
+                  <Text style={styles.rebookButtonText}>Thuê xe lại</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : loadingContract ? (
             <View style={styles.section}>
@@ -1113,6 +1138,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#fff',
+  },
+  rebookButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 10,
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  rebookButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
   contractInfo: {
     flexDirection: 'row',

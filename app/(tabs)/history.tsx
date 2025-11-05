@@ -36,16 +36,17 @@ export default function HistoryScreen() {
   const [allLoadedBookings, setAllLoadedBookings] = useState<any[]>([]); // Store all loaded bookings across pages
 
   useEffect(() => {
-    loadBookings();
-    loadStats();
+    loadBookingsAndStats();
   }, []);
 
-  const loadStats = async () => {
+  const loadBookingsAndStats = async () => {
     try {
-      // Fetch ALL bookings to calculate stats (same as Profile tab)
+      setLoading(true);
+      
+      // Fetch ALL bookings to calculate stats
       const allResponse = await bookingAPI.getBookings({ 
         page: 1, 
-        limit: 1000 // Get all bookings at once for stats calculation
+        limit: 1000 // Get all bookings at once
       });
       
       const allBookings = allResponse.bookings || [];
@@ -67,87 +68,58 @@ export default function HistoryScreen() {
       setTotalCompletedAll(totalCompleted);
       setTotalSpentAll(totalSpent);
       setTotalDistanceAll(Math.round(totalDistance));
+      setAllLoadedBookings(allBookings);
       
-      console.log('📊 Stats calculated:', {
+      // Set pagination info
+      if (allResponse.pagination) {
+        setTotalRecords(allResponse.pagination.totalRecords || 0);
+      }
+      
+      // Calculate total pages based on UI pagination (10 items per page)
+      const calculatedTotalPages = Math.ceil(allBookings.length / 10) || 1;
+      setTotalPages(calculatedTotalPages);
+      
+      // Display first page
+      setBookings(allBookings.slice(0, 10));
+      setCurrentPage(1);
+      setHasMore(allBookings.length > 10);
+      
+      console.log('📊 Initial load complete:', {
         totalBookings: allBookings.length,
+        totalPages: Math.ceil(allBookings.length / 10),
         totalCompleted,
-        totalSpent
+        totalSpent,
+        displayedBookings: Math.min(10, allBookings.length)
       });
     } catch (error) {
-      console.error('Error loading stats:', error);
+      console.error('Error loading bookings and stats:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const loadBookings = async (page: number = 1) => {
-    try {
-      console.log('📖 Loading bookings - Page:', page);
-      
-      if (page === 1) {
-        setLoading(true);
-      } else {
-        setLoadingMore(true);
-      }
-      
-      const response = await bookingAPI.getBookings({ page, limit: 10 });
-      
-      console.log('✅ Bookings loaded:', {
-        page,
-        count: response.bookings?.length || 0,
-        pagination: response.pagination,
-        totalBookings: bookings.length,
-        totalSpentFromAPI: response.totalSpent,
-        totalCompletedFromAPI: response.totalCompleted,
-        fullResponse: JSON.stringify(response, null, 2)
-      });
-      
-      if (page === 1) {
-        setBookings(response.bookings || []);
-        setAllLoadedBookings(response.bookings || []);
-      } else {
-        setBookings(response.bookings || []); // Only show current page
-        setAllLoadedBookings(prev => [...prev, ...(response.bookings || [])]); // Accumulate all
-      }
-      
-      // Check if there are more items to load
-      const hasMoreItems = response.pagination && 
-                          response.pagination.current < response.pagination.total;
-      setHasMore(hasMoreItems);
-      setCurrentPage(page);
-      
-      // Set total pages and records from pagination
-      if (response.pagination) {
-        setTotalPages(response.pagination.total || 1);
-        setTotalRecords(response.pagination.totalRecords || 0);
-      }
-      
-      // Set totals from response if available
-      if (response.totalSpent !== undefined) {
-        setTotalSpentAll(response.totalSpent);
-      }
-      if (response.totalCompleted !== undefined) {
-        setTotalCompletedAll(response.totalCompleted);
-      }
-      
-      console.log('📊 State updated:', {
-        totalBookingsNow: (page === 1 ? response.bookings?.length : bookings.length + (response.bookings?.length || 0)),
-        hasMore: hasMoreItems,
-        currentPage: page
-      });
-      
-    } catch (error) {
-      console.error('❌ Error loading bookings:', error);
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
+    console.log('📖 Changing to page:', page);
+    
+    // Calculate which bookings to show for this page
+    const startIdx = (page - 1) * 10;
+    const endIdx = startIdx + 10;
+    const pageBookings = allLoadedBookings.slice(startIdx, endIdx);
+    
+    setBookings(pageBookings);
+    setCurrentPage(page);
+    setHasMore(endIdx < allLoadedBookings.length);
+    
+    console.log('📄 Page changed:', {
+      page,
+      showing: pageBookings.length,
+      total: allLoadedBookings.length
+    });
   };
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    setCurrentPage(1);
-    setHasMore(true);
-    setAllLoadedBookings([]); // Reset accumulated bookings
-    await loadBookings(1);
+    await loadBookingsAndStats();
     setRefreshing(false);
   };
 
@@ -585,16 +557,6 @@ export default function HistoryScreen() {
                   />
                 </TouchableOpacity>
               </View>
-            </View>
-          )}
-          
-          {/* Loading Indicator */}
-          {(loading || loadingMore) && (
-            <View style={{ paddingVertical: 20, alignItems: 'center' }}>
-              <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={{ color: colors.textSecondary, marginTop: 8, fontSize: 12 }}>
-                Đang tải...
-              </Text>
             </View>
           )}
         </Animated.View>
