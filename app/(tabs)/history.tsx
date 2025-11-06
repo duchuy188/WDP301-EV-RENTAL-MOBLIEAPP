@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Calendar, MapPin, Clock, DollarSign, TrendingUp, ChevronRight, ChevronLeft } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useThemeStore } from '@/store/themeStore';
 import { bookingAPI } from '@/api/bookingAPI';
 
@@ -35,9 +35,12 @@ export default function HistoryScreen() {
   const [totalDistanceAll, setTotalDistanceAll] = useState(0);
   const [allLoadedBookings, setAllLoadedBookings] = useState<any[]>([]); // Store all loaded bookings across pages
 
-  useEffect(() => {
-    loadBookingsAndStats();
-  }, []);
+  // Auto-refresh when tab is focused (e.g., after creating/editing/canceling booking)
+  useFocusEffect(
+    useCallback(() => {
+      loadBookingsAndStats();
+    }, [])
+  );
 
   const loadBookingsAndStats = async () => {
     try {

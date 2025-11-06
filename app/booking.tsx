@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { ArrowLeft, Calendar, Clock, MapPin, FileText, CreditCard } from 'lucide-react-native';
+import { ArrowLeft, Calendar, Clock, MapPin, FileText, CreditCard, AlertCircle } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useThemeStore } from '@/store/themeStore';
 import { bookingAPI } from '@/api/bookingAPI';
@@ -27,7 +27,7 @@ export default function BookingScreen() {
   const stationId = params.stationId as string;
   const stationName = params.stationName as string;
   const pricePerDay = params.pricePerDay ? parseFloat(params.pricePerDay as string) : 0;
-  const depositPercentage = params.depositPercentage ? parseFloat(params.depositPercentage as string) : 0;
+  const depositPercentage = params.depositPercentage ? parseFloat(params.depositPercentage as string) : 50; // Default 50% for >= 3 days
 
   // Booking form state
   const [startDate, setStartDate] = useState(new Date());
@@ -96,12 +96,12 @@ export default function BookingScreen() {
   };
 
   const calculateDepositAmount = (): number => {
-    if (calculateTotalDays() < 2) return 0;
+    if (calculateTotalDays() < 3) return 0;
     return calculateTotalPrice() * (depositPercentage / 100);
   };
 
   const requiresDeposit = (): boolean => {
-    return calculateTotalDays() > 3 && depositPercentage > 0;
+    return calculateTotalDays() >= 3 && depositPercentage > 0;
   };
 
   const handleBooking = async () => {
@@ -369,6 +369,19 @@ export default function BookingScreen() {
               </View>
               <View style={[styles.radioButton, styles.radioButtonSelected, { borderColor: colors.primary }]}>
                 <View style={[styles.radioButtonInner, { backgroundColor: colors.primary }]} />
+              </View>
+            </View>
+
+            {/* Warning Note */}
+            <View style={styles.holdingFeeWarning}>
+              <AlertCircle size={18} color="#F59E0B" />
+              <View style={{ flex: 1, marginLeft: 8 }}>
+                <Text style={styles.holdingFeeWarningText}>
+                  Lưu ý: Nếu hủy đặt xe sau khi thanh toán, bạn sẽ mất 50.000đ phí giữ chỗ
+                </Text>
+                <Text style={[styles.holdingFeeWarningText, { marginTop: 4 }]}>
+                  • Bạn được quyền chỉnh sửa đặt xe 1 lần duy nhất (trước 24h nhận xe)
+                </Text>
               </View>
             </View>
           </View>
@@ -723,6 +736,22 @@ const styles = StyleSheet.create({
   paymentDescription: {
     fontSize: 13,
     color: '#6B7280',
+  },
+  holdingFeeWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    padding: 12,
+    borderRadius: 10,
+    marginTop: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: '#F59E0B',
+  },
+  holdingFeeWarningText: {
+    fontSize: 13,
+    color: '#92400E',
+    lineHeight: 18,
+    fontWeight: '500',
   },
   radioButton: {
     width: 24,

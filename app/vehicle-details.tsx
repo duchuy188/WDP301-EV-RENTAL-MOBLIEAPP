@@ -355,7 +355,7 @@ export default function VehicleDetailsScreen() {
                 stationId: stationInfo._id,
                 stationName: stationInfo.name,
                 pricePerDay: (selectedColor?.price_per_day || vehicle.price_per_day || 0).toString(),
-                depositPercentage: (selectedColor?.deposit_percentage || vehicle.deposit_percentage || 0).toString(),
+                depositPercentage: '50', // Always 50% for >= 3 days rental (backend business logic)
               }
             });
           }}

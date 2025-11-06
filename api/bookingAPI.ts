@@ -1,16 +1,16 @@
 
 import apiClient from './config';
-import { BookingListResponse, BookingRequest, BookingResponse } from '@/types/booking';
+import { BookingListResponse, BookingRequest, BookingResponse, UpdateBookingResponse } from '@/types/booking';
 
 
 export const bookingAPI = {
   postBooking: async (data: BookingRequest): Promise<BookingResponse> => {
-    const response = await apiClient.post('/bookings', data);
+    const response = await apiClient.post<BookingResponse>('/bookings', data);
     return response.data;
   },
   // Lấy danh sách booking của user (có phân trang)
   getBookings: async (params?: { page?: number; limit?: number }): Promise<BookingListResponse> => {
-    const response = await apiClient.get('/bookings/user', { params });
+    const response = await apiClient.get<BookingListResponse>('/bookings/user', { params });
     return response.data;
   },
 
@@ -24,13 +24,19 @@ export const bookingAPI = {
 
   // Get detailed booking by id
   getBooking: async (id: string): Promise<BookingResponse> => {
-    const response = await apiClient.get(`/bookings/${id}`);
+    const response = await apiClient.get<BookingResponse>(`/bookings/${id}`);
     return response.data;
   },
 
   // Get user statistics (total completed, total spent)
   getUserStats: async () => {
     const response = await apiClient.get('/bookings/user/stats');
+    return response.data;
+  },
+
+  // Update/Edit a booking by id
+  updateBooking: async (id: string, data: Partial<BookingRequest>): Promise<UpdateBookingResponse> => {
+    const response = await apiClient.put<UpdateBookingResponse>(`/bookings/${id}`, data);
     return response.data;
   },
 
