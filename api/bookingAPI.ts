@@ -40,4 +40,16 @@ export const bookingAPI = {
     return response.data;
   },
 
+  // Get pending bookings for current user
+  getMyPendingBookings: async (): Promise<BookingListResponse> => {
+    const response = await apiClient.get<BookingListResponse>('/bookings/my-pending');
+    return response.data;
+  },
+
+  // Cancel a pending booking by temp_id
+  cancelPendingBooking: async (tempId: string) => {
+    const response = await apiClient.post(`/bookings/my-pending/${tempId}/cancel`);
+    return response.data;
+  },
+
 };

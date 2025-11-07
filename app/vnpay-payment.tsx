@@ -11,6 +11,7 @@ import { WebView } from 'react-native-webview';
 import { useLocalSearchParams, router } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { useThemeStore } from '@/store/themeStore';
+import { bookingAPI } from '@/api/bookingAPI';
 
 export default function VNPayPaymentScreen() {
   const { colors } = useThemeStore();
@@ -23,6 +24,7 @@ export default function VNPayPaymentScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isVerifying, setIsVerifying] = useState(false);
   const [paymentProcessed, setPaymentProcessed] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const webViewRef = useRef<WebView>(null);
 
   const handleNavigationStateChange = async (navState: any) => {
@@ -195,19 +197,58 @@ export default function VNPayPaymentScreen() {
           onPress={() => {
             Alert.alert(
               'Hủy thanh toán?',
-              'Bạn có chắc muốn hủy thanh toán? Bạn có thể thanh toán sau trong chi tiết đặt xe.',
+              'Bạn có chắc muốn hủy thanh toán? Đơn đặt xe sẽ bị hủy.',
               [
                 { text: 'Không', style: 'cancel' },
                 {
                   text: 'Hủy',
-                  onPress: () => router.replace('/(tabs)/history'),
+                  onPress: async () => {
+                    try {
+                      setIsCancelling(true);
+                      
+                      // Cancel pending booking if it's a temp booking (has PB prefix)
+                      if (bookingId && bookingId.startsWith('PB')) {
+                        console.log('🚫 Cancelling pending booking:', bookingId);
+                        const cancelResponse = await bookingAPI.cancelPendingBooking(bookingId);
+                        console.log('✅ Cancel API Response:', cancelResponse);
+                        console.log('✅ Pending booking cancelled successfully - Vehicle unreserved');
+                        
+                        // Navigate back and let useFocusEffect refresh the list
+                        router.replace('/(tabs)/history');
+                        
+                        // Show success message after navigation
+                        setTimeout(() => {
+                          Alert.alert(
+                            'Đã hủy thành công',
+                            'Đơn đặt xe đã được hủy. Xe đã được nhả ra.'
+                          );
+                        }, 500);
+                      } else {
+                        router.replace('/(tabs)/history');
+                      }
+                    } catch (error: any) {
+                      console.error('❌ Error cancelling booking:', error);
+                      Alert.alert(
+                        'Lỗi',
+                        'Không thể hủy đặt xe. Vui lòng thử lại.',
+                        [{ text: 'OK', onPress: () => router.replace('/(tabs)/history') }]
+                      );
+                    } finally {
+                      setIsCancelling(false);
+                    }
+                  },
                   style: 'destructive'
                 }
               ]
             );
           }}
+          disabled={isCancelling}
         >
-          <ArrowLeft size={24} color="#fff" />
+          {isCancelling ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <ArrowLeft size={24} color="#fff" />
+          )}
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Thanh toán VNPay</Text>
         <View style={{ width: 40 }} />
