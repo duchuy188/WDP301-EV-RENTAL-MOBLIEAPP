@@ -11,17 +11,20 @@ export interface BookingRequest {
     return_time: string;     // HH:mm
     special_requests?: string;
     notes?: string;
+    reason_for_change?: string;  // Lý do thay đổi khi edit booking
   }
   
-  // Vehicle info embedded trong booking
-  export interface BookingVehicle {
-    _id: string;
-    license_plate: string;
-    name: string;
-    brand: string;
-    model: string;
-    images?: string[];
-  }
+// Vehicle info embedded trong booking
+export interface BookingVehicle {
+  _id: string;
+  license_plate: string;
+  name: string;
+  brand: string;
+  model: string;
+  color: string;
+  images?: string[];
+  deposit_percentage?: number; // % đặt cọc của xe
+}
   
   // Station info embedded trong booking
   export interface BookingStation {
@@ -31,6 +34,15 @@ export interface BookingRequest {
     phone: string;
   }
   
+  // Holding Fee Info
+  export interface HoldingFee {
+    amount: number;
+    status: 'unpaid' | 'paid';
+    payment_method: 'vnpay' | 'cash' | '';
+    paid_at?: string | null;
+    payment_id?: string | null;
+  }
+
   // Thông tin chi tiết booking trả về từ API
   export interface Booking {
     _id: string;
@@ -48,6 +60,8 @@ export interface BookingRequest {
     total_days: number;
     total_price: number;
     deposit_amount: number;
+    holding_fee?: HoldingFee;
+    edit_count?: number; // Số lần đã edit (max 1)
     late_fee: number;
     damage_fee: number;
     other_fees: number;
@@ -74,6 +88,26 @@ export interface BookingRequest {
     message: string;
     booking: Booking;
     requiresKYC: boolean;
+    canEdit?: boolean; // Có thể edit booking này không
+    canCancel?: boolean; // Có thể cancel không
+  }
+  
+  // Alternative vehicles khi edit booking mà hết xe
+  export interface AlternativeVehicle {
+    _id: string;
+    brand: string;
+    model: string;
+    color: string;
+    price_per_day: number;
+    images?: string[];
+    available_count: number;
+  }
+  
+  // Response khi update booking
+  export interface UpdateBookingResponse {
+    message: string;
+    booking: Booking;
+    alternativeVehicles?: AlternativeVehicle[]; // Nếu hết xe gốc
   }
   
   export interface BookingPagination {
@@ -87,4 +121,6 @@ export interface BookingRequest {
     message: string;
     bookings: Booking[];
     pagination: BookingPagination;
+    totalSpent?: number;
+    totalCompleted?: number;
   }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -30,7 +30,7 @@ import {
 } from 'lucide-react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useThemeStore } from '@/store/themeStore';
 import { useAuthStore } from '@/store/authStore';
 import { bookingAPI } from '@/api/bookingAPI';
@@ -55,60 +55,63 @@ export default function ProfileScreen() {
   });
 
   // Fetch all bookings and calculate stats
-  useEffect(() => {
-    const fetchBookingsAndStats = async () => {
-      try {
-        setLoadingActivities(true);
-        
-        // Fetch recent bookings for activity list
-        const recentResponse = await bookingAPI.getBookings({ page: 1, limit: 5 });
-        setRecentBookings(recentResponse.bookings);
-        setTotalBookings(recentResponse.pagination.totalRecords);
-        
-        // Fetch all bookings to calculate stats
-        const allResponse = await bookingAPI.getBookings({ 
-          page: 1, 
-          limit: 1000 // Get a large number to calculate stats
-        });
-        
-        const allBookings = allResponse.bookings || [];
-        
-        // Filter completed bookings
-        const completedBookings = allBookings.filter(b => b.status === 'completed');
-        
-        // Calculate total distance from completed bookings
-        // Estimate: 30km per day of rental
-        const totalDistance = completedBookings.reduce((sum, booking) => {
-          const days = booking.total_days || 1;
-          const estimatedDistance = days * 30; // 30km per day
-          return sum + estimatedDistance;
-        }, 0);
-        
-        // Count completed trips
-        const totalTrips = completedBookings.length;
-        
-        // Calculate total spending from completed bookings
-        const totalSpending = completedBookings.reduce((sum, booking) => {
-          const amount = booking.final_amount || booking.total_price || 0;
-          return sum + amount;
-        }, 0);
-        
-        setUserStats({
-          level: 'Eco Driver',
-          totalTrips,
-          totalDistance: Math.round(totalDistance),
-          totalSpending: Math.round(totalSpending),
-        });
-        
-      } catch (error) {
-        console.error('❌ Error fetching bookings:', error);
-      } finally {
-        setLoadingActivities(false);
-      }
-    };
+  const fetchBookingsAndStats = async () => {
+    try {
+      setLoadingActivities(true);
+      
+      // Fetch recent bookings for activity list
+      const recentResponse = await bookingAPI.getBookings({ page: 1, limit: 5 });
+      setRecentBookings(recentResponse.bookings);
+      setTotalBookings(recentResponse.pagination.totalRecords);
+      
+      // Fetch all bookings to calculate stats
+      const allResponse = await bookingAPI.getBookings({ 
+        page: 1, 
+        limit: 1000 // Get a large number to calculate stats
+      });
+      
+      const allBookings = allResponse.bookings || [];
+      
+      // Filter completed bookings
+      const completedBookings = allBookings.filter(b => b.status === 'completed');
+      
+      // Calculate total distance from completed bookings
+      // Estimate: 30km per day of rental
+      const totalDistance = completedBookings.reduce((sum, booking) => {
+        const days = booking.total_days || 1;
+        const estimatedDistance = days * 30; // 30km per day
+        return sum + estimatedDistance;
+      }, 0);
+      
+      // Count completed trips
+      const totalTrips = completedBookings.length;
+      
+      // Calculate total spending from completed bookings
+      const totalSpending = completedBookings.reduce((sum, booking) => {
+        const amount = booking.final_amount || booking.total_price || 0;
+        return sum + amount;
+      }, 0);
+      
+      setUserStats({
+        level: 'Eco Driver',
+        totalTrips,
+        totalDistance: Math.round(totalDistance),
+        totalSpending: Math.round(totalSpending),
+      });
+      
+    } catch (error) {
+      console.error('❌ Error fetching bookings:', error);
+    } finally {
+      setLoadingActivities(false);
+    }
+  };
 
-    fetchBookingsAndStats();
-  }, []);
+  // Auto-refresh when tab is focused (e.g., after creating/editing/completing booking)
+  useFocusEffect(
+    useCallback(() => {
+      fetchBookingsAndStats();
+    }, [])
+  );
 
   // Transform bookings to activity format
   const getActivityFromBooking = (booking: Booking) => {

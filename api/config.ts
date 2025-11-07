@@ -88,12 +88,13 @@ apiClient.interceptors.response.use(
     }
 
     if (status === 401) {
-      // Skip redirect for login/register/forgot-password endpoints
+      // Skip redirect for login/register/forgot-password/change-password endpoints
       // (these endpoints naturally return 401 for invalid credentials)
       const isAuthEndpoint = url?.includes('/auth/login') || 
                             url?.includes('/auth/register') || 
                             url?.includes('/auth/forgot-password') ||
-                            url?.includes('/auth/reset-password');
+                            url?.includes('/auth/reset-password') ||
+                            url?.includes('/auth/change-password');
       
       if (!isAuthEndpoint) {
         // Token expired or invalid - clear local auth data

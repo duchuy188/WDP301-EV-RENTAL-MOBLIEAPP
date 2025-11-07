@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Modal,
 } from 'react-native';
 import {
   User,
@@ -19,6 +20,10 @@ import {
   Camera,
   Save,
   ArrowLeft,
+  Lock,
+  X,
+  Eye,
+  EyeOff,
 } from 'lucide-react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { router } from 'expo-router';
@@ -39,6 +44,18 @@ export default function EditProfileScreen() {
     avatar: user?.profileImage || '',
   });
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Change password modal state
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const handleSaveProfile = async () => {
     if (!editForm.name.trim()) {
@@ -155,6 +172,70 @@ export default function EditProfileScreen() {
       { text: 'Camera', onPress: pickImageFromCamera },
       { text: 'Thư viện', onPress: pickImageFromGallery },
     ]);
+  };
+
+  const handleChangePassword = async () => {
+    // Validate inputs
+    if (!passwordForm.currentPassword.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập mật khẩu hiện tại');
+      return;
+    }
+
+    if (!passwordForm.newPassword.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập mật khẩu mới');
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      Alert.alert('Lỗi', 'Mật khẩu mới phải có ít nhất 6 ký tự');
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      Alert.alert('Lỗi', 'Mật khẩu xác nhận không khớp');
+      return;
+    }
+
+    if (passwordForm.currentPassword === passwordForm.newPassword) {
+      Alert.alert('Lỗi', 'Mật khẩu mới phải khác mật khẩu hiện tại');
+      return;
+    }
+
+    setIsChangingPassword(true);
+
+    try {
+      // Call API to change password
+      await authAPI.changePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+
+      setIsChangingPassword(false);
+      setShowPasswordModal(false);
+      // Reset form
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+
+      Alert.alert('Thành công', 'Mật khẩu đã được thay đổi!');
+    } catch (error: any) {
+      setIsChangingPassword(false);
+      
+      // Lấy message tiếng Việt từ backend
+      let errorMessage = 'Không thể đổi mật khẩu. Vui lòng thử lại.';
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Mật khẩu hiện tại không đúng';
+      } else if (error.message && !error.message.includes('status code')) {
+        errorMessage = error.message;
+      }
+      
+      Alert.alert('Lỗi', errorMessage);
+    }
   };
 
   const styles = StyleSheet.create({
@@ -289,6 +370,121 @@ export default function EditProfileScreen() {
       fontWeight: 'bold',
       fontFamily: 'Inter-Bold',
     },
+    changePasswordButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primary + '15',
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      borderRadius: 12,
+      gap: 8,
+      marginTop: 10,
+      borderWidth: 1,
+      borderColor: colors.primary + '30',
+    },
+    changePasswordButtonText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.primary,
+      fontFamily: 'Inter-Medium',
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+    },
+    modalContainer: {
+      width: '100%',
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      padding: 24,
+      maxWidth: 400,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 24,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: colors.text,
+      fontFamily: 'Inter-Bold',
+    },
+    closeButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.border,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modalInputGroup: {
+      marginBottom: 16,
+    },
+    modalInputLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.text,
+      marginBottom: 8,
+      fontFamily: 'Inter-Medium',
+    },
+    modalInputContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      backgroundColor: colors.background,
+      paddingHorizontal: 16,
+      height: 50,
+    },
+    modalInput: {
+      flex: 1,
+      fontSize: 16,
+      color: colors.text,
+      marginLeft: 12,
+      fontFamily: 'Inter-Regular',
+    },
+    eyeButton: {
+      padding: 4,
+    },
+    modalButtons: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 24,
+    },
+    modalButton: {
+      flex: 1,
+      height: 48,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    cancelButton: {
+      backgroundColor: colors.border,
+    },
+    confirmButton: {
+      backgroundColor: colors.primary,
+    },
+    confirmButtonDisabled: {
+      backgroundColor: colors.border,
+    },
+    modalButtonText: {
+      fontSize: 16,
+      fontWeight: '600',
+      fontFamily: 'Inter-Medium',
+    },
+    cancelButtonText: {
+      color: colors.text,
+    },
+    confirmButtonText: {
+      color: '#FFFFFF',
+    },
   });
 
   return (
@@ -388,6 +584,15 @@ export default function EditProfileScreen() {
                   />
                 </View>
               </View>
+
+              {/* Change Password Button */}
+              <TouchableOpacity
+                style={styles.changePasswordButton}
+                onPress={() => setShowPasswordModal(true)}
+              >
+                <Lock size={20} color={colors.primary} />
+                <Text style={styles.changePasswordButtonText}>Đổi mật khẩu</Text>
+              </TouchableOpacity>
             </Animated.View>
           </View>
         </ScrollView>
@@ -410,6 +615,155 @@ export default function EditProfileScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Change Password Modal */}
+      <Modal
+        visible={showPasswordModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPasswordModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ width: '100%' }}
+          >
+            <View style={styles.modalContainer}>
+              {/* Modal Header */}
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Đổi mật khẩu</Text>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={() => {
+                    setShowPasswordModal(false);
+                    setPasswordForm({
+                      currentPassword: '',
+                      newPassword: '',
+                      confirmPassword: '',
+                    });
+                  }}
+                >
+                  <X size={18} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Current Password */}
+              <View style={styles.modalInputGroup}>
+                <Text style={styles.modalInputLabel}>Mật khẩu hiện tại *</Text>
+                <View style={styles.modalInputContainer}>
+                  <Lock size={20} color={colors.textSecondary} />
+                  <TextInput
+                    style={styles.modalInput}
+                    value={passwordForm.currentPassword}
+                    onChangeText={(text) =>
+                      setPasswordForm((prev) => ({ ...prev, currentPassword: text }))
+                    }
+                    placeholder="Nhập mật khẩu hiện tại"
+                    placeholderTextColor={colors.textSecondary}
+                    secureTextEntry={!showCurrentPassword}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowCurrentPassword(!showCurrentPassword)}
+                  >
+                    {showCurrentPassword ? (
+                      <EyeOff size={20} color={colors.textSecondary} />
+                    ) : (
+                      <Eye size={20} color={colors.textSecondary} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* New Password */}
+              <View style={styles.modalInputGroup}>
+                <Text style={styles.modalInputLabel}>Mật khẩu mới *</Text>
+                <View style={styles.modalInputContainer}>
+                  <Lock size={20} color={colors.textSecondary} />
+                  <TextInput
+                    style={styles.modalInput}
+                    value={passwordForm.newPassword}
+                    onChangeText={(text) =>
+                      setPasswordForm((prev) => ({ ...prev, newPassword: text }))
+                    }
+                    placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+                    placeholderTextColor={colors.textSecondary}
+                    secureTextEntry={!showNewPassword}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowNewPassword(!showNewPassword)}
+                  >
+                    {showNewPassword ? (
+                      <EyeOff size={20} color={colors.textSecondary} />
+                    ) : (
+                      <Eye size={20} color={colors.textSecondary} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Confirm Password */}
+              <View style={styles.modalInputGroup}>
+                <Text style={styles.modalInputLabel}>Xác nhận mật khẩu mới *</Text>
+                <View style={styles.modalInputContainer}>
+                  <Lock size={20} color={colors.textSecondary} />
+                  <TextInput
+                    style={styles.modalInput}
+                    value={passwordForm.confirmPassword}
+                    onChangeText={(text) =>
+                      setPasswordForm((prev) => ({ ...prev, confirmPassword: text }))
+                    }
+                    placeholder="Nhập lại mật khẩu mới"
+                    placeholderTextColor={colors.textSecondary}
+                    secureTextEntry={!showConfirmPassword}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeButton}
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff size={20} color={colors.textSecondary} />
+                    ) : (
+                      <Eye size={20} color={colors.textSecondary} />
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Modal Buttons */}
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => {
+                    setShowPasswordModal(false);
+                    setPasswordForm({
+                      currentPassword: '',
+                      newPassword: '',
+                      confirmPassword: '',
+                    });
+                  }}
+                >
+                  <Text style={[styles.modalButtonText, styles.cancelButtonText]}>Hủy</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.modalButton,
+                    styles.confirmButton,
+                    isChangingPassword && styles.confirmButtonDisabled,
+                  ]}
+                  onPress={handleChangePassword}
+                  disabled={isChangingPassword}
+                >
+                  <Text style={[styles.modalButtonText, styles.confirmButtonText]}>
+                    {isChangingPassword ? 'Đang xử lý...' : 'Xác nhận'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
     </View>
   );
 }
