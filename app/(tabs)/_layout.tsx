@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import { useColorScheme } from 'react-native';
-import { History, User, MessageCircle } from 'lucide-react-native';
+import { History, User, MessageCircle, BarChart3 } from 'lucide-react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 
 export default function TabLayout() {
@@ -72,6 +72,15 @@ export default function TabLayout() {
           title: 'Trợ lý',
           tabBarIcon: ({ size, color }) => (
             <MessageCircle size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="analytics"
+        options={{
+          title: 'Thống kê',
+          tabBarIcon: ({ size, color }) => (
+            <BarChart3 size={size} color={color} />
           ),
         }}
       />
