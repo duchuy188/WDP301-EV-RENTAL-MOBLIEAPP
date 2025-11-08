@@ -415,21 +415,21 @@ export default function HistoryScreen() {
       backgroundColor: colors.background,
     },
     header: {
-      paddingTop: Platform.OS === 'android' ? 70 : 58,
+      paddingTop: 60,
       paddingHorizontal: 20,
-      paddingBottom: 12,
-      backgroundColor: colors.surface,
+      paddingBottom: 20,
+      backgroundColor: '#1B5E20',
     },
     title: {
       fontSize: 28,
       fontWeight: 'bold',
-      color: colors.text,
-      marginBottom: 8,
+      color: '#FFFFFF',
+      marginBottom: 6,
       fontFamily: 'Inter-Bold',
     },
     subtitle: {
-      fontSize: 16,
-      color: colors.textSecondary,
+      fontSize: 15,
+      color: '#E8F5E9',
       fontFamily: 'Inter-Regular',
     },
     content: {

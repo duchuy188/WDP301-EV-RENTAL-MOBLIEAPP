@@ -249,15 +249,15 @@ export default function EditProfileScreen() {
       paddingTop: 60,
       paddingHorizontal: 20,
       paddingBottom: 20,
-      backgroundColor: colors.surface,
+      backgroundColor: '#1B5E20',
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderBottomColor: '#1B5E20',
     },
     backButton: {
       width: 40,
       height: 40,
       borderRadius: 20,
-      backgroundColor: colors.border,
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
       justifyContent: 'center',
       alignItems: 'center',
       marginRight: 12,
@@ -265,7 +265,7 @@ export default function EditProfileScreen() {
     headerTitle: {
       fontSize: 20,
       fontWeight: 'bold',
-      color: colors.text,
+      color: '#FFFFFF',
       fontFamily: 'Inter-Bold',
     },
     content: {
@@ -492,7 +492,7 @@ export default function EditProfileScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={20} color={colors.text} />
+          <ArrowLeft size={20} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Chỉnh sửa thông tin</Text>
       </View>

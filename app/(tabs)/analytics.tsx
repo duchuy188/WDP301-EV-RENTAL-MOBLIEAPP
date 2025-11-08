@@ -139,10 +139,10 @@ export default function AnalyticsScreen() {
       backgroundColor: colors.background,
     },
     header: {
-      paddingTop: Platform.OS === 'android' ? 70 : 58,
+      paddingTop: 60,
       paddingHorizontal: 20,
-      paddingBottom: 24,
-      backgroundColor: colors.surface,
+      paddingBottom: 20,
+      backgroundColor: '#1B5E20',
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.05,
@@ -150,16 +150,16 @@ export default function AnalyticsScreen() {
       elevation: 3,
     },
     title: {
-      fontSize: 32,
+      fontSize: 28,
       fontWeight: 'bold',
-      color: colors.text,
+      color: '#FFFFFF',
       marginBottom: 6,
       fontFamily: 'Inter-Bold',
       letterSpacing: -0.5,
     },
     subtitle: {
       fontSize: 15,
-      color: colors.textSecondary,
+      color: '#E8F5E9',
       fontFamily: 'Inter-Regular',
     },
     content: {
@@ -496,9 +496,6 @@ export default function AnalyticsScreen() {
     <View style={styles.container}>
       <Animated.View entering={FadeInUp.delay(100)} style={styles.header}>
         <Text style={styles.title}>Thống kê</Text>
-        <Text style={styles.subtitle}>
-          Thành viên: {formatDate(statsData.last_updated)}
-        </Text>
       </Animated.View>
 
       <ScrollView

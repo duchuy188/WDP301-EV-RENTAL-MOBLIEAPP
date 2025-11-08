@@ -337,12 +337,12 @@ export default function ProfileScreen() {
       paddingTop: 60,
       paddingHorizontal: 20,
       paddingBottom: 20,
-      backgroundColor: colors.surface,
+      backgroundColor: '#1B5E20',
     },
     title: {
       fontSize: 28,
       fontWeight: 'bold',
-      color: colors.text,
+      color: '#FFFFFF',
       fontFamily: 'Inter-Bold',
     },
     content: {

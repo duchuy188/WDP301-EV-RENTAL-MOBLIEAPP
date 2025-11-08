@@ -366,12 +366,12 @@ export default function ChatbotScreen() {
       backgroundColor: theme.background,
     },
     header: {
-      backgroundColor: theme.surface,
-      paddingTop: 50,
-      paddingBottom: 16,
+      backgroundColor: '#1B5E20',
+      paddingTop: 60,
+      paddingBottom: 20,
       paddingHorizontal: 16,
       borderBottomWidth: 1,
-      borderBottomColor: theme.border,
+      borderBottomColor: '#1B5E20',
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
@@ -384,12 +384,12 @@ export default function ChatbotScreen() {
     headerTitle: {
       fontSize: 20,
       fontWeight: 'bold',
-      color: theme.text,
+      color: '#FFFFFF',
       fontFamily: 'Inter-Bold',
     },
     headerSubtitle: {
       fontSize: 14,
-      color: theme.textSecondary,
+      color: '#E8F5E9',
       marginTop: 2,
       fontFamily: 'Inter-Regular',
     },
@@ -662,7 +662,7 @@ export default function ChatbotScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.menuButton} onPress={toggleSidebar}>
-          <Menu size={24} color={theme.text} />
+          <Menu size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={styles.headerLeft}>
           <Text style={styles.headerTitle}>Trợ lý AI</Text>

@@ -416,7 +416,7 @@ export default function HomeScreen() {
 
         <View style={styles.locationAndModeContainer}>
           <TouchableOpacity style={styles.locationRow}>
-            <MapPin size={18} color={colors.primary} />
+            <MapPin size={18} color="#FFFFFF" />
             <Text style={styles.locationText}>{selectedLocation}</Text>
           </TouchableOpacity>
 
@@ -429,7 +429,7 @@ export default function HomeScreen() {
               ]}
               onPress={() => setViewMode('list')}
             >
-              <List size={18} color={viewMode === 'list' ? '#fff' : colors.primary} />
+              <List size={18} color={viewMode === 'list' ? '#FFFFFF' : '#1B5E20'} />
             </TouchableOpacity>
             <TouchableOpacity
               style={[
@@ -438,7 +438,7 @@ export default function HomeScreen() {
               ]}
               onPress={() => setViewMode('map')}
             >
-              <Map size={18} color={viewMode === 'map' ? '#fff' : colors.primary} />
+              <Map size={18} color={viewMode === 'map' ? '#FFFFFF' : '#1B5E20'} />
             </TouchableOpacity>
           </View>
         </View>
@@ -580,8 +580,8 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: 60,
     paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: '#FFFFFF',
+    paddingBottom: 12,
+    backgroundColor: '#1B5E20',
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     shadowColor: '#000',
@@ -589,32 +589,32 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  greeting: { fontSize: 15, color: '#6B7280' },
-  welcomeText: { fontSize: 22, fontWeight: '700', marginTop: 2 },
-  searchContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 16 },
+  greeting: { fontSize: 14, color: '#E8F5E9' },
+  welcomeText: { fontSize: 20, fontWeight: '700', marginTop: 2, color: '#FFFFFF' },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
   searchBox: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
   },
   searchInput: { flex: 1, fontSize: 15, marginLeft: 8 },
   locationAndModeContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 14,
+    marginTop: 10,
   },
   locationRow: { flexDirection: 'row', alignItems: 'center' },
-  locationText: { marginLeft: 6, fontWeight: '600', color: '#111827' },
+  locationText: { marginLeft: 6, fontWeight: '600', color: '#FFFFFF' },
 
   // View Mode Toggle
   viewModeToggle: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderRadius: 10,
     padding: 4,
   },
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   modeButtonActive: {
-    backgroundColor: '#16A34A',
+    backgroundColor: '#1B5E20',
   },
 
   // Map
