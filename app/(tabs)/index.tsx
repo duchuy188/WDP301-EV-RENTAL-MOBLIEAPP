@@ -528,7 +528,13 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={[styles.viewDetailsButton, { backgroundColor: colors.primary }]}
                 onPress={() => {
-                  // Navigate to station details
+                  router.push({
+                    pathname: '/station-details',
+                    params: { 
+                      id: selectedStation._id,
+                      distance: selectedStation.distance?.toString() || '0'
+                    }
+                  });
                 }}
               >
                 <Text style={styles.viewDetailsText}>Xem chi tiết trạm</Text>
