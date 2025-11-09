@@ -30,7 +30,8 @@ export default function VNPayPaymentScreen() {
   const handleNavigationStateChange = async (navState: any) => {
     const { url } = navState;
     
-    console.log('WebView URL:', url);
+    console.log('🌐 [VNPay WebView] URL:', url);
+    console.log('🔍 [VNPay WebView] Payment processed:', paymentProcessed);
 
     // Check for booking-success redirect from backend (localhost URL can't be loaded)
     if (url.includes('/booking-success') && !paymentProcessed) {
@@ -151,9 +152,17 @@ export default function VNPayPaymentScreen() {
   const handleError = (syntheticEvent: any) => {
     const { nativeEvent } = syntheticEvent;
     
+    console.log('❌ [VNPay WebView] Error occurred:', {
+      url: nativeEvent.url,
+      code: nativeEvent.code,
+      description: nativeEvent.description,
+      paymentProcessed,
+      isVerifying
+    });
+    
     // Don't show error if payment has been processed (ERR_INVALID_REDIRECT is expected after successful payment)
     if (paymentProcessed || isVerifying) {
-      console.log('Ignoring WebView error - payment already processed');
+      console.log('✅ [VNPay] Ignoring WebView error - payment already processed');
       return;
     }
     
@@ -162,9 +171,76 @@ export default function VNPayPaymentScreen() {
       nativeEvent.url.includes('/holding-fee/callback') || 
       nativeEvent.url.includes('vnp_ResponseCode') ||
       nativeEvent.url.includes('/booking-success') ||
-      nativeEvent.url.includes('localhost')
+      nativeEvent.url.includes('localhost') ||
+      nativeEvent.url.includes('192.168.102.8')
     )) {
-      console.log('Ignoring WebView error on redirect URL - this is expected');
+      console.log('✅ [VNPay] Ignoring WebView error on callback URL - this is expected');
+      
+      // Try to extract payment result from URL even on error
+      if (nativeEvent.url.includes('vnp_ResponseCode') && !paymentProcessed) {
+        console.log('🔍 [VNPay] Attempting to extract payment result from error URL');
+        setIsVerifying(true);
+        setPaymentProcessed(true);
+        
+        try {
+          const urlObj = new URL(nativeEvent.url);
+          const vnpResponseCode = urlObj.searchParams.get('vnp_ResponseCode');
+          const vnpTransactionStatus = urlObj.searchParams.get('vnp_TransactionStatus');
+          
+          console.log('💳 [VNPay] Payment Response Code:', vnpResponseCode);
+          console.log('💳 [VNPay] Transaction Status:', vnpTransactionStatus);
+          
+          if (vnpResponseCode === '00' || vnpTransactionStatus === '00') {
+            setTimeout(() => {
+              Alert.alert(
+                'Thanh toán thành công! 🎉',
+                'Phí giữ chỗ đã được thanh toán. Đơn đặt xe của bạn đã được xác nhận.',
+                [
+                  {
+                    text: 'Xem đơn đặt xe',
+                    onPress: () => {
+                      router.replace('/(tabs)/history');
+                    }
+                  }
+                ]
+              );
+            }, 500);
+          } else {
+            const errorMessages: { [key: string]: string } = {
+              '07': 'Giao dịch bị nghi ngờ gian lận',
+              '09': 'Thẻ/Tài khoản chưa đăng ký dịch vụ InternetBanking',
+              '10': 'Xác thực thông tin thẻ/tài khoản không đúng quá 3 lần',
+              '11': 'Đã hết hạn chờ thanh toán',
+              '12': 'Thẻ/Tài khoản bị khóa',
+              '13': 'Sai mật khẩu xác thực giao dịch (OTP)',
+              '24': 'Khách hàng hủy giao dịch',
+              '51': 'Tài khoản không đủ số dư',
+              '65': 'Tài khoản đã vượt quá hạn mức giao dịch trong ngày',
+              '75': 'Ngân hàng thanh toán đang bảo trì',
+              '79': 'Giao dịch vượt quá số lần nhập sai mật khẩu',
+              '99': 'Lỗi không xác định'
+            };
+            
+            const errorMessage = errorMessages[vnpResponseCode || '99'] || 'Thanh toán không thành công';
+            
+            Alert.alert(
+              'Thanh toán thất bại',
+              errorMessage,
+              [
+                {
+                  text: 'Quay lại',
+                  onPress: () => router.replace('/(tabs)/history')
+                }
+              ]
+            );
+          }
+        } catch (error) {
+          console.error('❌ [VNPay] Error parsing payment result from error URL:', error);
+        } finally {
+          setIsVerifying(false);
+        }
+      }
+      
       return;
     }
     

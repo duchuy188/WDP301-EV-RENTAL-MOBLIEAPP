@@ -83,7 +83,7 @@ export default function VerifyDocumentsScreen() {
       paddingHorizontal: 20,
       paddingTop: 60,
       paddingBottom: 20,
-      backgroundColor: colors.surface,
+      backgroundColor: '#1B5E20',
     },
     closeButton: {
       padding: 8,
@@ -91,7 +91,7 @@ export default function VerifyDocumentsScreen() {
     headerTitle: {
       fontSize: 20,
       fontWeight: 'bold',
-      color: colors.text,
+      color: '#FFFFFF',
       marginLeft: 16,
       fontFamily: 'Inter-Bold',
     },
@@ -177,7 +177,7 @@ export default function VerifyDocumentsScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.closeButton} onPress={() => router.back()}>
-          <X size={24} color={colors.text} />
+          <X size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Xác thực kyc</Text>
       </View>

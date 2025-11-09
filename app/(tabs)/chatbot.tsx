@@ -12,17 +12,34 @@ import {
   SafeAreaView,
   Animated,
   Modal,
-  Pressable
+  Pressable,
+  Linking,
+  Alert
 } from 'react-native';
-import { Bot, User, Send, RotateCcw, History, X, Menu, Plus } from 'lucide-react-native';
+import { Bot, User, Send, RotateCcw, History, X, Menu, Plus, ExternalLink, CreditCard } from 'lucide-react-native';
+import { FontAwesome5 } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { sendMessage as sendChatMessage, getConversationHistory, getConversations, getSuggestions } from '@/api/chatbotAPI';
+import { CHATBOT } from '@/config/chatbot';
+import { router } from 'expo-router';
 
 interface Message {
   id: string;
   text: string;
   isUser: boolean;
   timestamp: Date;
+  context?: string;
+  actions?: string[];
+  suggestions?: string[];
+}
+
+interface ChatContext {
+  topic?: string;
+  userIntent?: string;
+  lastKeywords?: string[];
+  conversationStep?: number;
+  sessionId?: string;
+  conversationId?: string;
 }
 
 const TypingIndicator = ({ color }: { color: string }) => {
@@ -102,11 +119,15 @@ export default function ChatbotScreen() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [conversations, setConversations] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([
-    'Xe nào có pin nhiều?',
-    'Giá thuê xe thế nào?',
-    'Trạm xe gần nhất ở đâu?'
-  ]);
+  const [suggestions, setSuggestions] = useState<string[]>(CHATBOT.suggestedQuestions);
+  const [chatContext, setChatContext] = useState<ChatContext>({
+    topic: '',
+    userIntent: '',
+    lastKeywords: [],
+    conversationStep: 0,
+    sessionId: undefined,
+    conversationId: undefined,
+  });
   const scrollViewRef = useRef<ScrollView>(null);
   const sidebarAnim = useRef(new Animated.Value(-300)).current;
 
@@ -133,10 +154,147 @@ export default function ChatbotScreen() {
 
   const theme = colors[colorScheme ?? 'light'];
 
+  // Helper functions
+  const extractErrorMessage = (err: any): string | undefined => {
+    if (!err) return undefined;
+    if (err.response && err.response.data) {
+      if (typeof err.response.data === 'string') return err.response.data;
+      if (err.response.data.message) return err.response.data.message;
+      if (err.response.data.error) return err.response.data.error;
+    }
+    if (err.message) return err.message;
+    return undefined;
+  };
+
+  const extractUrls = (text: string): string[] => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return text.match(urlRegex) || [];
+  };
+
+  const removeUrls = (text: string): string => {
+    return text.replace(/(https?:\/\/[^\s]+)/g, '').trim();
+  };
+
+  const replaceCarEmojis = (text: string): string => {
+    // Replace car emoji 🚗 with motorcycle emoji 🏍️
+    return text.replace(/🚗/g, '🏍️');
+  };
+
+  const extractPaymentLink = (text: string): string | null => {
+    const paymentRegex = /(https?:\/\/[^\s]*(?:vnpay|payment)[^\s]*)/i;
+    const match = text.match(paymentRegex);
+    return match ? match[1] : null;
+  };
+
+  const extractBookingId = (text: string): string | null => {
+    // Try to extract booking code from text (format: PB followed by timestamp or BKxxxxxx)
+    // Handle markdown formatting like **PB09113418951H**
+    const bookingRegex = /\*\*Mã đặt chỗ:\*\*\s*(PB\d+[A-Z]?|BK[A-Z0-9]+)|Mã:\s*(PB\d+[A-Z]?|BK[A-Z0-9]+)|\b(PB\d+[A-Z]?|BK[A-Z0-9]+)\b/i;
+    const match = text.match(bookingRegex);
+    // Return the first non-null capture group
+    return match ? (match[1] || match[2] || match[3]) : null;
+  };
+
+  const getActionForSuggestion = (suggestion: string, actions?: string[]): string | null => {
+    if (!actions) return null;
+    
+    const suggestionLower = suggestion.toLowerCase().trim();
+    
+    if (suggestionLower.includes('thanh toán') || suggestionLower.includes('thanh toan')) {
+      return actions.find(a => a.includes('pay')) || null;
+    }
+    if (suggestionLower.includes('xem') || suggestionLower.includes('chi tiết') || suggestionLower.includes('chi tiet')) {
+      return actions.find(a => a.includes('view') || a.includes('details')) || null;
+    }
+    if (suggestionLower.includes('hủy') || suggestionLower.includes('huy') || suggestionLower.includes('cancel')) {
+      return actions.find(a => a.includes('cancel')) || null;
+    }
+    if (suggestionLower.includes('xác nhận') || suggestionLower.includes('xac nhan') || suggestionLower.includes('confirm')) {
+      return actions.find(a => a.includes('confirm')) || null;
+    }
+    if (suggestionLower.includes('thay đổi') || suggestionLower.includes('thay doi') || suggestionLower.includes('edit')) {
+      return actions.find(a => a.includes('edit')) || null;
+    }
+    
+    return null;
+  };
+
+  const handleOpenLink = async (url: string, bookingId?: string) => {
+    try {
+      console.log('🔗 [Chatbot] Attempting to open URL:', url);
+      console.log('📋 [Chatbot] Booking ID:', bookingId);
+      
+      // Check if it's a payment link (VNPay) - case insensitive
+      const urlLower = url.toLowerCase();
+      const isPaymentLink = 
+        urlLower.includes('payment') || 
+        urlLower.includes('vnpay') || 
+        urlLower.includes('vnp_') ||
+        urlLower.includes('sandbox.vnpayment.vn') ||
+        urlLower.includes('vnpayment.vn');
+      
+      console.log('💳 [Chatbot] Is payment link?', isPaymentLink);
+      
+      if (isPaymentLink) {
+        console.log('✅ [Chatbot] Opening VNPay WebView screen...');
+        
+        // Navigate to VNPay WebView screen
+        router.push({
+          pathname: '/vnpay-payment',
+          params: {
+            paymentUrl: url,
+            bookingId: bookingId || '',
+            amount: '0' // Amount will be shown in the payment page
+          }
+        });
+      } else {
+        console.log('🌐 [Chatbot] Opening in browser...');
+        // For other links, open in browser
+        const canOpen = await Linking.canOpenURL(url);
+        if (canOpen) {
+          await Linking.openURL(url);
+        } else {
+          Alert.alert('Lỗi', 'Không thể mở liên kết này');
+        }
+      }
+    } catch (error) {
+      console.error('❌ [Chatbot] Error opening URL:', error);
+      Alert.alert('Lỗi', 'Không thể mở liên kết');
+    }
+  };
+
   useEffect(() => {
     console.log('🟢 [Chatbot] Component mounted - loading initial data...');
     loadChatHistory();
     loadSuggestions();
+  }, []);
+
+  // Listen for payment completion events
+  useEffect(() => {
+    const handlePaymentSuccess = (event: any) => {
+      console.log('💰 [Chatbot] Payment success event received:', event);
+      
+      const notificationMessage: Message = {
+        id: `payment-success-${Date.now()}`,
+        text: '🎉 Thanh toán thành công! Đơn đặt xe của bạn đã được xác nhận. Bạn có thể xem chi tiết trong phần Lịch sử.',
+        isUser: false,
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => [...prev, notificationMessage]);
+      
+      // Auto scroll to show the new message
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    };
+
+    // Note: You would need to emit this event from vnpay-payment.tsx after successful payment
+    // For now, this is a placeholder for the event listener
+    
+    return () => {
+      // Cleanup
+    };
   }, []);
 
   useEffect(() => {
@@ -157,7 +315,7 @@ export default function ChatbotScreen() {
   const showWelcomeMessage = () => {
     const welcomeMessage: Message = {
       id: 'welcome',
-      text: 'Xin chào! Tôi là trợ lý AI của EV Renter. Tôi có thể giúp bạn tìm xe, kiểm tra lịch sử thuê xe và trả lời các câu hỏi về dịch vụ. Bạn cần hỗ trợ gì?',
+      text: CHATBOT.welcomeMessage,
       isUser: false,
       timestamp: new Date(),
     };
@@ -244,11 +402,7 @@ export default function ChatbotScreen() {
       console.error('❌ [Chatbot] Error loading suggestions:', error);
       console.log('⚠️ [Chatbot] Using fallback suggestions');
       // Fallback to default suggestions if API fails
-      setSuggestions([
-        'Xe nào có pin nhiều?',
-        'Giá thuê xe thế nào?',
-        'Trạm xe gần nhất ở đâu?'
-      ]);
+      setSuggestions(CHATBOT.suggestedQuestions);
     }
   };
 
@@ -268,16 +422,30 @@ export default function ChatbotScreen() {
         const loadedMessages: Message[] = historyMessages.map((msg: any, idx: number) => {
           const messageText = msg.content || msg.message || msg.text || '[Empty message]';
           const messageRole = msg.role?.toLowerCase();
+          const urls = extractUrls(messageText);
           
           return {
             id: `${selectedSessionId}_${idx}`,
             text: messageText,
             isUser: messageRole === 'user',
             timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
+            actions: msg.metadata?.actions || (urls.length > 0 ? urls : undefined),
+            suggestions: msg.metadata?.suggestions,
+            context: msg.metadata?.context,
           };
         });
         
         setMessages(loadedMessages);
+        
+        // Update chat context
+        setChatContext({
+          sessionId: selectedSessionId,
+          conversationId: (historyResponse.data as any)?.conversation_id,
+          topic: '',
+          userIntent: '',
+          lastKeywords: [],
+          conversationStep: loadedMessages.length,
+        });
       } else {
         showWelcomeMessage();
       }
@@ -286,13 +454,13 @@ export default function ChatbotScreen() {
     }
   };
 
-  const sendMessage = async () => {
-    if (!inputText.trim() || isLoading) return;
+  const sendMessage = async (suggestedText?: string) => {
+    const messageText = suggestedText || inputText.trim();
+    if (!messageText || isLoading) return;
 
-    const userText = inputText.trim();
     const userMessage: Message = {
       id: Date.now().toString(),
-      text: userText,
+      text: messageText,
       isUser: true,
       timestamp: new Date(),
     };
@@ -302,10 +470,13 @@ export default function ChatbotScreen() {
     setIsLoading(true);
 
     try {
-      const response = await sendChatMessage({
-        session_id: sessionId,
-        message: userText,
-      });
+      const payload = {
+        message: messageText,
+        session_id: chatContext.sessionId || sessionId,
+        conversation_id: chatContext.conversationId
+      } as any;
+
+      const response = await sendChatMessage(payload);
 
       if (__DEV__) {
         console.log('[Chatbot] Send message response:', JSON.stringify(response, null, 2));
@@ -314,11 +485,21 @@ export default function ChatbotScreen() {
       const success = response.success || response.data?.success;
       const aiText = response.data?.message || response.data?.response || response.message;
       const responseSuggestions = response.suggestions || response.data?.suggestions;
+      const responseActions = response.actions || response.data?.actions || [];
+      const responseContext = response.data?.context;
       
       if (__DEV__) {
-        console.log('[Chatbot] Success:', success, 'aiText:', aiText?.substring(0, 50) + '...');
+        console.log('[Chatbot] Success:', success);
+        console.log('[Chatbot] aiText:', aiText?.substring(0, 50) + '...');
         console.log('[Chatbot] Response suggestions:', responseSuggestions);
+        console.log('[Chatbot] Response actions:', responseActions);
       }
+      
+      // Extract URLs from message
+      const urls = extractUrls(aiText || '');
+      // Combine action strings and URLs
+      const actionStrings = Array.isArray(responseActions) ? responseActions : [];
+      const messageActions = [...actionStrings, ...urls].filter((v, i, a) => a.indexOf(v) === i);
       
       // Update suggestions if provided in response
       if (responseSuggestions && Array.isArray(responseSuggestions) && responseSuggestions.length > 0) {
@@ -332,8 +513,20 @@ export default function ChatbotScreen() {
           text: aiText,
           isUser: false,
           timestamp: new Date(),
+          context: responseContext,
+          actions: messageActions.length > 0 ? messageActions : undefined,
+          suggestions: responseSuggestions
         };
         setMessages(prev => [...prev, aiResponse]);
+
+        // Update chat context
+        setChatContext(prev => ({
+          ...prev,
+          sessionId: response.data?.session_id ?? prev.sessionId,
+          conversationId: response.data?.conversation_id ?? prev.conversationId,
+          topic: responseContext ?? prev.topic,
+          conversationStep: (prev.conversationStep || 0) + 1
+        }));
 
         setTimeout(() => {
           scrollViewRef.current?.scrollToEnd({ animated: true });
@@ -343,13 +536,46 @@ export default function ChatbotScreen() {
       }
     } catch (error: any) {
       console.error('Error sending message:', error);
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: 'Xin lỗi, tôi đang gặp sự cố kết nối. Vui lòng thử lại sau.',
-        isUser: false,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      
+      // Check if backend returned a message even with error status (e.g., "No pending booking to cancel")
+      const backendMessage = error.response?.data?.message || error.response?.data?.data?.message;
+      const backendSuggestions = error.response?.data?.suggestions || error.response?.data?.data?.suggestions;
+      
+      if (__DEV__) {
+        console.log('🔍 [Chatbot] Error response:', {
+          status: error.response?.status,
+          message: backendMessage,
+          suggestions: backendSuggestions,
+          fullData: error.response?.data
+        });
+      }
+      
+      if (backendMessage) {
+        // Backend sent a user-friendly message (even with 500 status)
+        const aiResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          text: backendMessage,
+          isUser: false,
+          timestamp: new Date(),
+          suggestions: backendSuggestions
+        };
+        setMessages(prev => [...prev, aiResponse]);
+        
+        // Update suggestions if provided
+        if (backendSuggestions && Array.isArray(backendSuggestions) && backendSuggestions.length > 0) {
+          setSuggestions(backendSuggestions);
+        }
+      } else {
+        // Generic error message
+        const msg = extractErrorMessage(error) ?? 'Xin lỗi, tôi đang gặp sự cố kết nối. Vui lòng thử lại sau.';
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          text: msg,
+          isUser: false,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -366,12 +592,12 @@ export default function ChatbotScreen() {
       backgroundColor: theme.background,
     },
     header: {
-      backgroundColor: theme.surface,
-      paddingTop: 50,
-      paddingBottom: 16,
+      backgroundColor: '#1B5E20',
+      paddingTop: 60,
+      paddingBottom: 20,
       paddingHorizontal: 16,
       borderBottomWidth: 1,
-      borderBottomColor: theme.border,
+      borderBottomColor: '#1B5E20',
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
@@ -384,12 +610,12 @@ export default function ChatbotScreen() {
     headerTitle: {
       fontSize: 20,
       fontWeight: 'bold',
-      color: theme.text,
+      color: '#FFFFFF',
       fontFamily: 'Inter-Bold',
     },
     headerSubtitle: {
       fontSize: 14,
-      color: theme.textSecondary,
+      color: '#E8F5E9',
       marginTop: 2,
       fontFamily: 'Inter-Regular',
     },
@@ -416,7 +642,7 @@ export default function ChatbotScreen() {
     messageWrapper: {
       marginBottom: 12,
       flexDirection: 'row',
-      alignItems: 'flex-end',
+      alignItems: 'flex-start',
     },
     userMessage: {
       justifyContent: 'flex-end',
@@ -509,6 +735,53 @@ export default function ChatbotScreen() {
       color: theme.text,
       fontSize: 14,
       fontFamily: 'Inter-Regular',
+    },
+    suggestionButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 8,
+      gap: 6,
+      shadowColor: '#000',
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    paymentButton: {
+      backgroundColor: '#3B82F6',
+    },
+    confirmButton: {
+      backgroundColor: theme.primary,
+    },
+    cancelButton: {
+      backgroundColor: '#FFFFFF',
+      borderWidth: 2,
+      borderColor: '#EF4444',
+    },
+    defaultSuggestionButton: {
+      backgroundColor: '#FFFFFF',
+      borderWidth: 2,
+      borderColor: theme.secondary,
+    },
+    suggestionButtonText: {
+      color: '#FFFFFF',
+      fontSize: 13,
+      fontWeight: '600',
+      fontFamily: 'Inter-SemiBold',
+    },
+    cancelButtonText: {
+      color: '#EF4444',
+      fontSize: 13,
+      fontWeight: '600',
+      fontFamily: 'Inter-SemiBold',
+    },
+    defaultSuggestionText: {
+      color: theme.primary,
+      fontSize: 13,
+      fontWeight: '600',
+      fontFamily: 'Inter-SemiBold',
     },
     inputContainer: {
       flexDirection: 'row',
@@ -662,7 +935,7 @@ export default function ChatbotScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.menuButton} onPress={toggleSidebar}>
-          <Menu size={24} color={theme.text} />
+          <Menu size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={styles.headerLeft}>
           <Text style={styles.headerTitle}>Trợ lý AI</Text>
@@ -695,12 +968,12 @@ export default function ChatbotScreen() {
               ]}
             >
               {!message.isUser && (
-                <View style={[styles.avatar, styles.botAvatar]}>
+                <View style={[styles.avatar, styles.botAvatar, { marginTop: 4 }]}>
                   <Bot size={16} color="#FFFFFF" />
                 </View>
               )}
               
-              <View>
+              <View style={{ flex: 1, maxWidth: '75%' }}>
                 <View style={[
                   styles.messageBubble,
                   message.isUser ? styles.userBubble : styles.botBubble,
@@ -709,7 +982,9 @@ export default function ChatbotScreen() {
                     styles.messageText,
                     message.isUser ? styles.userText : styles.botText,
                   ]}>
-                    {message.text || '[No content]'}
+                    {message.actions && message.actions.length > 0 
+                      ? replaceCarEmojis(removeUrls(message.text))
+                      : replaceCarEmojis(message.text || '[No content]')}
                   </Text>
                 </View>
                 <Text style={[
@@ -721,6 +996,172 @@ export default function ChatbotScreen() {
                     minute: '2-digit' 
                   })}
                 </Text>
+
+                {/* Render suggestion buttons below the message bubble */}
+                {message.suggestions && message.suggestions.length > 0 && !message.isUser && (
+                  <View style={{ marginTop: 8, gap: 6 }}>
+                    {message.suggestions.map((suggestion, idx) => {
+                      const action = getActionForSuggestion(suggestion, message.actions);
+                      const paymentLink = extractPaymentLink(message.text);
+                      const bookingId = extractBookingId(message.text);
+                      
+                      if (__DEV__ && bookingId) {
+                        console.log('📝 [Chatbot] Extracted booking ID:', bookingId, 'from message');
+                      }
+                      
+                      // Special handling for payment action
+                      if (action === 'pay_holding_fee' && paymentLink) {
+                        return (
+                          <TouchableOpacity
+                            key={idx}
+                            onPress={() => handleOpenLink(paymentLink, bookingId || undefined)}
+                            style={[styles.suggestionButton, styles.paymentButton]}
+                          >
+                            <CreditCard size={14} color="#FFFFFF" />
+                            <Text style={styles.suggestionButtonText}>
+                              💳 {suggestion}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      }
+                      
+                      // Special handling for cancel action
+                      if (action && action.includes('cancel')) {
+                        return (
+                          <TouchableOpacity
+                            key={idx}
+                            onPress={async () => {
+                              // If this is a cancel_booking action and we have a booking ID, call API directly
+                              if (action === 'cancel_booking' && bookingId) {
+                                Alert.alert(
+                                  'Xác nhận hủy booking',
+                                  `Bạn có chắc muốn hủy booking ${bookingId}?\n\nLưu ý: Phí giữ chỗ sẽ không được hoàn lại nếu đã thanh toán.`,
+                                  [
+                                    {
+                                      text: 'Không',
+                                      style: 'cancel'
+                                    },
+                                    {
+                                      text: 'Hủy booking',
+                                      style: 'destructive',
+                                      onPress: async () => {
+                                        try {
+                                          console.log('🚫 [Chatbot] Cancelling booking:', bookingId);
+                                          setIsLoading(true);
+                                          
+                                          // Import bookingAPI dynamically
+                                          const { bookingAPI } = await import('@/api/bookingAPI');
+                                          const response = await bookingAPI.cancelPendingBooking(bookingId);
+                                          
+                                          console.log('✅ [Chatbot] Cancel response:', response);
+                                          
+                                          // Show success message in chat
+                                          const successMessage: Message = {
+                                            id: Date.now().toString(),
+                                            text: '✅ Đã hủy booking thành công!\n\n🏍️ Xe đã được nhả ra và có thể được đặt bởi người khác.\n\nBạn có thể đặt xe mới bất cứ lúc nào.',
+                                            isUser: false,
+                                            timestamp: new Date(),
+                                            suggestions: ['Đặt xe mới', 'Xem lịch sử booking']
+                                          };
+                                          setMessages(prev => [...prev, successMessage]);
+                                          setSuggestions(['Đặt xe mới', 'Xem lịch sử booking']);
+                                          
+                                          setTimeout(() => {
+                                            scrollViewRef.current?.scrollToEnd({ animated: true });
+                                          }, 100);
+                                        } catch (error: any) {
+                                          console.error('❌ [Chatbot] Error cancelling booking:', error);
+                                          
+                                          const errorMsg = error.response?.data?.message || error.message || 'Không thể hủy booking';
+                                          
+                                          const errorMessage: Message = {
+                                            id: Date.now().toString(),
+                                            text: `❌ Lỗi: ${errorMsg}\n\nVui lòng thử lại hoặc liên hệ hỗ trợ.`,
+                                            isUser: false,
+                                            timestamp: new Date(),
+                                          };
+                                          setMessages(prev => [...prev, errorMessage]);
+                                        } finally {
+                                          setIsLoading(false);
+                                        }
+                                      }
+                                    }
+                                  ]
+                                );
+                              } else {
+                                // For other cancel actions, just send the message
+                                sendMessage(suggestion);
+                              }
+                            }}
+                            style={[styles.suggestionButton, styles.cancelButton]}
+                          >
+                            <Text style={styles.cancelButtonText}>❌ {suggestion}</Text>
+                          </TouchableOpacity>
+                        );
+                      }
+                      
+                      // Special handling for confirm action
+                      if (action && action.includes('confirm')) {
+                        return (
+                          <TouchableOpacity
+                            key={idx}
+                            onPress={() => sendMessage(suggestion)}
+                            style={[styles.suggestionButton, styles.confirmButton]}
+                          >
+                            <Text style={styles.suggestionButtonText}>✅ {suggestion}</Text>
+                          </TouchableOpacity>
+                        );
+                      }
+                      
+                      // Default suggestion button
+                      return (
+                        <TouchableOpacity
+                          key={idx}
+                          onPress={() => sendMessage(suggestion)}
+                          style={[styles.suggestionButton, styles.defaultSuggestionButton]}
+                        >
+                          <Text style={styles.defaultSuggestionText}>{suggestion}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+
+                {/* Render action buttons (URLs) below suggestions */}
+                {message.actions && message.actions.length > 0 && !message.isUser && !message.suggestions && (
+                  <View style={{ marginTop: 8, gap: 6 }}>
+                    {message.actions.map((action, idx) => {
+                      const isUrl = action.startsWith('http://') || action.startsWith('https://');
+                      if (!isUrl) return null;
+                      
+                      const isPaymentLink = action.includes('payment') || action.includes('vnpay');
+                      const bookingId = extractBookingId(message.text);
+                      
+                      return (
+                        <TouchableOpacity
+                          key={idx}
+                          onPress={() => handleOpenLink(action, bookingId || undefined)}
+                          style={[
+                            styles.suggestionButton,
+                            isPaymentLink ? styles.paymentButton : styles.confirmButton
+                          ]}
+                        >
+                          {isPaymentLink ? (
+                            <>
+                              <CreditCard size={14} color="#FFFFFF" />
+                              <Text style={styles.suggestionButtonText}>💳 Thanh toán ngay</Text>
+                            </>
+                          ) : (
+                            <>
+                              <ExternalLink size={14} color="#FFFFFF" />
+                              <Text style={styles.suggestionButtonText}>Mở liên kết</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
               </View>
 
               {message.isUser && (
@@ -730,6 +1171,51 @@ export default function ChatbotScreen() {
               )}
             </View>
           ))}
+
+          {/* Suggested Questions - Show only when no messages and no pending actions */}
+          {messages.length === 0 && !isLoading && !messages.some(m => m.suggestions && m.suggestions.length > 0) && (
+            <View style={{ paddingHorizontal: 8, marginTop: 20 }}>
+              <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                <Text style={{ fontSize: 15, fontWeight: '600', color: theme.text, fontFamily: 'Inter-SemiBold' }}>
+                  Xin chào! 👋 Tôi có thể giúp gì cho bạn?
+                </Text>
+              </View>
+              
+              <View>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: theme.textSecondary, marginBottom: 12, fontFamily: 'Inter-SemiBold' }}>
+                  Gợi ý:
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {suggestions.map((question, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      onPress={() => sendMessage(question)}
+                      style={{
+                        flex: 1,
+                        minWidth: '47%',
+                        paddingHorizontal: 12,
+                        paddingVertical: 14,
+                        backgroundColor: theme.surface,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        borderRadius: 12,
+                        minHeight: 70,
+                        justifyContent: 'center',
+                        shadowColor: '#000',
+                        shadowOpacity: 0.05,
+                        shadowRadius: 4,
+                        elevation: 2,
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, lineHeight: 18, color: theme.text, fontFamily: 'Inter-Regular' }}>
+                        {question}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+          )}
           
           {isLoading && (
             <View style={styles.loadingWrapper}>
@@ -743,7 +1229,7 @@ export default function ChatbotScreen() {
           )}
         </ScrollView>
 
-        {!isLoading && quickActions.length > 0 && (
+        {!isLoading && messages.length > 0 && quickActions.length > 0 && !messages.some(m => m.suggestions && m.suggestions.length > 0) && (
           <View style={styles.quickActions}>
             <Text style={styles.quickActionsTitle}>Câu hỏi gợi ý:</Text>
             <View style={styles.quickActionsRow}>
@@ -768,7 +1254,7 @@ export default function ChatbotScreen() {
             placeholder="Nhập câu hỏi của bạn..."
             placeholderTextColor={theme.textSecondary}
             multiline
-            onSubmitEditing={sendMessage}
+            onSubmitEditing={() => sendMessage()}
             blurOnSubmit={false}
           />
           <TouchableOpacity 
@@ -776,7 +1262,7 @@ export default function ChatbotScreen() {
               styles.sendButton,
               (!inputText.trim() || isLoading) && styles.sendButtonDisabled
             ]}
-            onPress={sendMessage}
+            onPress={() => sendMessage()}
             disabled={!inputText.trim() || isLoading}
           >
             <Send size={20} color="#FFFFFF" />

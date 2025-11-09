@@ -415,21 +415,21 @@ export default function HistoryScreen() {
       backgroundColor: colors.background,
     },
     header: {
-      paddingTop: Platform.OS === 'android' ? 70 : 58,
+      paddingTop: 60,
       paddingHorizontal: 20,
-      paddingBottom: 12,
-      backgroundColor: colors.surface,
+      paddingBottom: 20,
+      backgroundColor: '#1B5E20',
     },
     title: {
       fontSize: 28,
       fontWeight: 'bold',
-      color: colors.text,
-      marginBottom: 8,
+      color: '#FFFFFF',
+      marginBottom: 6,
       fontFamily: 'Inter-Bold',
     },
     subtitle: {
-      fontSize: 16,
-      color: colors.textSecondary,
+      fontSize: 15,
+      color: '#E8F5E9',
       fontFamily: 'Inter-Regular',
     },
     content: {
@@ -727,52 +727,17 @@ export default function HistoryScreen() {
   return (
     <SafeAreaView style={styles.container}>
         <Animated.View entering={FadeInUp.delay(100)} style={styles.header}>
-          <Text style={styles.title}>Lịch sử & Phân tích</Text>
+          <Text style={styles.title}>Lịch sử đặt xe</Text>
           <Text style={styles.subtitle}>Theo dõi hành trình thuê xe của bạn</Text>
         </Animated.View>
 
   <ScrollView 
-          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 4, paddingBottom: 20 }} 
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 4, paddingTop: 16, paddingBottom: 20 }} 
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[colors.primary]} />
           }
         >
-        {/* Stats Overview */}
-        <Animated.View entering={FadeInDown.delay(200)} style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <View style={styles.statIcon}>
-              <TrendingUp size={20} color={colors.primary} />
-            </View>
-            <Text style={styles.statValue}>{totalTrips}</Text>
-            <Text style={styles.statLabel}>Tổng chuyến đi</Text>
-          </View>
-          
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#10B981' + '20' }]}>
-              <Calendar size={20} color="#10B981" />
-            </View>
-            <Text style={styles.statValue}>{completedBookingsCount}</Text>
-            <Text style={styles.statLabel}>Đã hoàn thành</Text>
-          </View>
-          
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#F59E0B' + '20' }]}>
-              <MapPin size={20} color="#F59E0B" />
-            </View>
-            <Text style={styles.statValue}>{totalDistanceAll}</Text>
-            <Text style={styles.statLabel}>Tổng KM</Text>
-          </View>
-          
-          <View style={styles.statCard}>
-            <View style={styles.statIcon}>
-              <DollarSign size={20} color={colors.primary} />
-            </View>
-            <Text style={styles.statValue}>{formatPrice(totalSpent).replace('₫', '')}</Text>
-            <Text style={styles.statLabel}>Tổng chi tiêu</Text>
-          </View>
-        </Animated.View>
-
         {/* Pending Bookings Section - Only show when has pending bookings */}
         {(loadingPending || pendingBookings.length > 0) && (
           <Animated.View entering={FadeInDown.delay(250)} style={styles.section}>

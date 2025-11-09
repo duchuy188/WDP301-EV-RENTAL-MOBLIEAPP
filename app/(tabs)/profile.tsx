@@ -337,12 +337,12 @@ export default function ProfileScreen() {
       paddingTop: 60,
       paddingHorizontal: 20,
       paddingBottom: 20,
-      backgroundColor: colors.surface,
+      backgroundColor: '#1B5E20',
     },
     title: {
       fontSize: 28,
       fontWeight: 'bold',
-      color: colors.text,
+      color: '#FFFFFF',
       fontFamily: 'Inter-Bold',
     },
     content: {
@@ -351,7 +351,7 @@ export default function ProfileScreen() {
     profileCard: {
       backgroundColor: colors.surface,
       marginHorizontal: 20,
-      marginTop: -10,
+      marginTop: 24,
       borderRadius: 20,
       padding: 24,
       marginBottom: 24,
@@ -721,40 +721,11 @@ export default function ProfileScreen() {
                 source={{ uri: user?.profileImage || 'https://images.pexels.com/photos/2379004/pexels-photo-2379004.jpeg?auto=compress&cs=tinysrgb&w=400' }}
                 style={styles.avatar}
               />
-              <TouchableOpacity style={styles.editAvatarButton}>
-                <Camera size={14} color="#FFFFFF" />
-              </TouchableOpacity>
             </View>
             
             <View style={styles.profileInfo}>
               <Text style={styles.name}>{user?.name || 'Người dùng'}</Text>
               <Text style={styles.email}>{user?.email || 'user@example.com'}</Text>
-              <View style={styles.levelBadge}>
-                <Award size={12} color={colors.primary} />
-                <Text style={styles.levelText}>{userStats.level}</Text>
-              </View>
-            </View>
-          </View>
-          
-          <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{userStats.totalTrips}</Text>
-              <Text style={styles.statLabel}>Chuyến đi</Text>
-            </View>
-            
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>{userStats.totalDistance}</Text>
-              <Text style={styles.statLabel}>Tổng KM</Text>
-            </View>
-            
-            <View style={styles.statCard}>
-              <Text style={styles.statValue}>
-                {userStats.totalSpending >= 1000000 
-                  ? `${(userStats.totalSpending / 1000000).toFixed(1)}tr`
-                  : `${userStats.totalSpending.toLocaleString('vi-VN')}đ`
-                }
-              </Text>
-              <Text style={styles.statLabel}>Tổng chi</Text>
             </View>
           </View>
         </Animated.View>
@@ -785,7 +756,7 @@ export default function ProfileScreen() {
 
         {/* Recent Activity */}
         <Animated.View entering={FadeInDown.delay(400)} style={styles.section}>
-          <Text style={styles.sectionTitle}>Hoạt động gần đây</Text>
+          <Text style={styles.sectionTitle}>Thuê xe gần đây</Text>
           
           {loadingActivities ? (
             <View style={styles.activityLoadingContainer}>
