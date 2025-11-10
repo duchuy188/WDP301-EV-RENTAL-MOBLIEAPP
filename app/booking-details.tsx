@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Modal,
   TextInput,
 } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -104,6 +104,7 @@ export default function BookingDetailsScreen() {
 
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [canCancel, setCanCancel] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
   const [loading, setLoading] = useState(true);
   const [canceling, setCanceling] = useState(false);
   const [contractId, setContractId] = useState<string | null>(null);
@@ -113,9 +114,12 @@ export default function BookingDetailsScreen() {
   const [cancelReason, setCancelReason] = useState('');
   const [expandedNotes, setExpandedNotes] = useState(false);
 
-  useEffect(() => {
-    loadBookingDetails();
-  }, [bookingId]);
+  // Auto-refresh when screen is focused (e.g., after editing booking)
+  useFocusEffect(
+    useCallback(() => {
+      loadBookingDetails();
+    }, [bookingId])
+  );
 
   const loadBookingDetails = async () => {
     try {
@@ -123,11 +127,17 @@ export default function BookingDetailsScreen() {
       const response = await bookingAPI.getBooking(bookingId);
       setBooking(response.booking);
       setCanCancel(response.canCancel || false);
+      
+      // Check if can edit
+      const editAllowed = checkCanEditBooking(response.booking);
+      setCanEdit(editAllowed);
+      
       console.log('Booking details:', response);
       console.log('Booking payments:', response.booking.payments);
       console.log('Booking total_price:', response.booking.total_price);
       console.log('Contract ID from booking:', response.booking.contract_id);
       console.log('Booking status:', response.booking.status);
+      console.log('Can edit booking:', editAllowed);
       
       // If booking has contract_id, use it
       if (response.booking.contract_id) {
@@ -232,9 +242,73 @@ export default function BookingDetailsScreen() {
     }
   };
 
+  // Check if booking can be edited
+  const checkCanEditBooking = (bookingData: any): boolean => {
+    // 1. Must be online booking
+    if (bookingData.booking_type !== 'online') {
+      console.log('❌ Cannot edit: not online booking');
+      return false;
+    }
+
+    // 2. Must have paid holding fee
+    const holdingFee = bookingData.holding_fee;
+    if (!holdingFee || holdingFee.status !== 'paid') {
+      console.log('❌ Cannot edit: holding fee not paid');
+      return false;
+    }
+
+    // 3. Must be in pending status
+    if (bookingData.status !== 'pending') {
+      console.log('❌ Cannot edit: status is not pending');
+      return false;
+    }
+
+    // 4. Edit count must be less than 1
+    const editCount = bookingData.edit_count || 0;
+    if (editCount >= 1) {
+      console.log('❌ Cannot edit: already edited once');
+      return false;
+    }
+
+    // 5. Must be at least 24 hours before pickup
+    const now = new Date();
+    const pickupDate = new Date(bookingData.start_date);
+    
+    // Parse pickup time
+    if (bookingData.pickup_time) {
+      const [hours, minutes] = bookingData.pickup_time.split(':');
+      pickupDate.setHours(parseInt(hours), parseInt(minutes), 0);
+    }
+
+    const hoursDiff = (pickupDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    if (hoursDiff < 24) {
+      console.log('❌ Cannot edit: less than 24 hours before pickup');
+      return false;
+    }
+
+    console.log('✅ Booking can be edited');
+    return true;
+  };
+
+  const handleEditBooking = () => {
+    if (!booking) return;
+
+    router.push({
+      pathname: '/edit-booking',
+      params: { id: booking._id }
+    });
+  };
+
   const handleCancelBooking = () => {
     setCancelReason('');
     setShowCancelModal(true);
+  };
+
+  // Format date from "DD/MM/YYYY HH:mm:ss" to "DD/MM/YYYY"
+  const formatDateOnly = (dateStr: string): string => {
+    if (!dateStr) return '';
+    // Split by space and take only the date part
+    return dateStr.split(' ')[0];
   };
 
   const confirmCancelBooking = async () => {
@@ -345,8 +419,8 @@ export default function BookingDetailsScreen() {
       return booking.deposit_amount;
     }
     
-    // Nếu thuê > 3 ngày, tính 50% tổng giá
-    if (booking.total_days > 3) {
+    // Nếu thuê >= 3 ngày, tính 50% tổng giá
+    if (booking.total_days >= 3) {
       return booking.total_price * 0.5;
     }
     
@@ -422,9 +496,6 @@ export default function BookingDetailsScreen() {
                   backgroundColor="#fff"
                 />
                 <Text style={styles.qrCode}>{booking.qr_code}</Text>
-                {booking.qr_expires_at && (
-                  <Text style={styles.qrExpiry}>Hết hạn: {booking.qr_expires_at}</Text>
-                )}
               </View>
             </View>
           )}
@@ -493,7 +564,7 @@ export default function BookingDetailsScreen() {
                 <View style={{ marginLeft: 12, flex: 1 }}>
                   <Text style={styles.timeLabel}>Ngày nhận xe</Text>
                   <Text style={styles.timeValue}>
-                    {booking.start_date} • {booking.pickup_time}
+                    {formatDateOnly(booking.start_date)} • {booking.pickup_time}
                   </Text>
                 </View>
               </View>
@@ -503,7 +574,7 @@ export default function BookingDetailsScreen() {
                 <View style={{ marginLeft: 12, flex: 1 }}>
                   <Text style={styles.timeLabel}>Ngày trả xe</Text>
                   <Text style={styles.timeValue}>
-                    {booking.end_date} • {booking.return_time}
+                    {formatDateOnly(booking.end_date)} • {booking.return_time}
                   </Text>
                 </View>
               </View>
@@ -619,6 +690,31 @@ export default function BookingDetailsScreen() {
                   <Text style={styles.contractButtonText}>Xem Chi tiết thuê xe</Text>
                 </TouchableOpacity>
               </View>
+              
+              {/* Rebook Button for Completed Bookings */}
+              {booking.status === 'completed' && (
+                <TouchableOpacity
+                  style={[styles.rebookButton, { backgroundColor: colors.primary }]}
+                  onPress={() => {
+                    router.push({
+                      pathname: '/booking',
+                      params: {
+                        brand: booking.vehicle_id.brand,
+                        model: booking.vehicle_id.model,
+                        color: booking.vehicle_id.color,
+                        stationId: booking.station_id._id,
+                        stationName: booking.station_id.name,
+                        pricePerDay: booking.price_per_day.toString(),
+                        depositPercentage: '50', // Always 50% for >= 3 days rental
+                      }
+                    });
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <FontAwesome5 name="redo" size={18} color="#fff" />
+                  <Text style={styles.rebookButtonText}>Thuê xe lại</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : loadingContract ? (
             <View style={styles.section}>
@@ -640,35 +736,12 @@ export default function BookingDetailsScreen() {
             </View>
           ) : ['confirmed', 'active', 'completed'].includes(booking.status) ? (
             <View style={styles.section}>
-              <View style={[styles.contractInfo, { backgroundColor: '#FEF3C7' }]}>
+              <View style={[styles.contractInfo, { backgroundColor: '#FEF3C7' }]}> 
                 <AlertCircle size={20} color="#F59E0B" />
-                <Text style={[styles.contractInfoText, { color: '#92400E' }]}>
+                <Text style={[styles.contractInfoText, { color: '#92400E' }]}> 
                   Hợp đồng đang được xử lý, vui lòng thử lại sau
                 </Text>
               </View>
-              {/* Test button - Remove this later */}
-              <TouchableOpacity
-                style={[styles.contractButton, { backgroundColor: '#6366F1', marginTop: 12 }]}
-                onPress={() => {
-                  Alert.alert(
-                    'Test xem PDF',
-                    'Sẽ mở PDF mẫu từ hệ thống',
-                    [
-                      { text: 'Hủy', style: 'cancel' },
-                      {
-                        text: 'Xem',
-                        onPress: () => router.push({
-                          pathname: '/contract-view',
-                          params: { id: '68fde17bab91b59ebb0b8412', mode: 'pdf' }
-                        })
-                      }
-                    ]
-                  );
-                }}
-              >
-                <FileText size={20} color="#fff" />
-                <Text style={styles.contractButtonText}>🧪 Test xem PDF mẫu</Text>
-              </TouchableOpacity>
             </View>
           ) : null}
 
@@ -737,18 +810,28 @@ export default function BookingDetailsScreen() {
         </View>
       </ScrollView>
 
-      {/* Cancel Button */}
-      {canCancel && (
+      {/* Edit and Cancel Buttons */}
+      {(canEdit || canCancel) && (
         <View style={styles.bottomContainer}>
-          <TouchableOpacity
-            style={[styles.cancelButton, { borderColor: '#EF4444' }]}
-            onPress={handleCancelBooking}
-            disabled={canceling}
-          >
-            <Text style={[styles.cancelButtonText, { color: '#EF4444' }]}>
-              {canceling ? 'Đang hủy...' : 'Hủy đặt xe'}
-            </Text>
-          </TouchableOpacity>
+          {canEdit && (
+            <TouchableOpacity
+              style={[styles.editButton, { backgroundColor: colors.primary }]}
+              onPress={handleEditBooking}
+            >
+              <Text style={styles.editButtonText}>Chỉnh sửa đặt xe</Text>
+            </TouchableOpacity>
+          )}
+          {canCancel && (
+            <TouchableOpacity
+              style={[styles.cancelButton, { borderColor: '#EF4444', marginTop: canEdit ? 12 : 0 }]}
+              onPress={handleCancelBooking}
+              disabled={canceling}
+            >
+              <Text style={[styles.cancelButtonText, { color: '#EF4444' }]}>
+                {canceling ? 'Đang hủy...' : 'Hủy đặt xe'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -767,6 +850,14 @@ export default function BookingDetailsScreen() {
             <Text style={[styles.modalDescription, { color: colors.textSecondary }]}>
               Vui lòng cho biết lý do hủy đặt xe:
             </Text>
+
+            {/* Warning about holding fee */}
+            <View style={styles.warningBox}>
+              <AlertCircle size={18} color="#F59E0B" />
+              <Text style={styles.warningBoxText}>
+                Nếu hủy thì bạn sẽ mất 50.000đ phí giữ chỗ
+              </Text>
+            </View>
             
             <TextInput
               style={[styles.reasonInput, { 
@@ -1084,6 +1175,20 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
+  editButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  editButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
   cancelButton: {
     paddingVertical: 16,
     borderRadius: 12,
@@ -1113,6 +1218,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#fff',
+  },
+  rebookButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 10,
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  rebookButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
   contractInfo: {
     flexDirection: 'row',
@@ -1152,9 +1277,27 @@ const styles = StyleSheet.create({
   },
   modalDescription: {
     fontSize: 14,
-    marginBottom: 20,
+    marginBottom: 16,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: '#F59E0B',
+  },
+  warningBoxText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#92400E',
+    marginLeft: 8,
+    lineHeight: 18,
+    fontWeight: '600',
   },
   reasonInput: {
     borderWidth: 1,
@@ -1191,4 +1334,3 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 });
-
