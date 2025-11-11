@@ -41,6 +41,7 @@ export default function HistoryScreen() {
   
   // Store countdown timers for each pending booking
   const [countdownTimers, setCountdownTimers] = useState<{[key: string]: number}>({});
+  const [forceRender, setForceRender] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Modal state for pending booking details
@@ -70,9 +71,11 @@ export default function HistoryScreen() {
           const now = Date.now();
           const secondsLeft = Math.max(0, Math.floor((expiresAt - now) / 1000));
           initialTimers[bookingId] = secondsLeft;
+          console.log(`[TIMER INIT] ${bookingId}: ${secondsLeft}s`);
         }
       });
       setCountdownTimers(initialTimers);
+      console.log('[TIMER INIT] Total timers:', Object.keys(initialTimers).length);
     } else {
       setCountdownTimers({});
     }
@@ -80,22 +83,24 @@ export default function HistoryScreen() {
 
   // Countdown timer - update every second
   useEffect(() => {
+    console.log('[TIMER EFFECT] Running, pending bookings:', pendingBookings.length);
+    
     // Clear existing timer
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
 
-    if (Object.keys(countdownTimers).length > 0) {
+    // Only start timer if we have pending bookings
+    if (pendingBookings.length > 0) {
+      console.log('[TIMER] Starting new interval');
       timerRef.current = setInterval(() => {
         setCountdownTimers(prev => {
           const updated = {...prev};
-          let hasChanges = false;
           const expiredIds: string[] = [];
           
           Object.keys(updated).forEach(key => {
             if (updated[key] > 0) {
               updated[key] -= 1;
-              hasChanges = true;
               
               // Check if just expired (reached 0)
               if (updated[key] === 0) {
@@ -106,7 +111,8 @@ export default function HistoryScreen() {
           
           // Remove expired bookings from the list
           if (expiredIds.length > 0) {
-            setPendingBookings(current => 
+            console.log('[TIMER] Expired bookings:', expiredIds);
+            setPendingBookings(current =>
               current.filter(booking => {
                 const id = booking._id || booking.temp_id;
                 return !expiredIds.includes(id);
@@ -126,17 +132,22 @@ export default function HistoryScreen() {
             });
           }
           
-          return hasChanges ? updated : prev;
+          // Always return new object to force re-render every second
+          return {...updated};
         });
+        
+        // Force component re-render
+        setForceRender(n => n + 1);
       }, 1000);
     }
 
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
+        console.log('[TIMER] Cleanup - stopped timer');
       }
     };
-  }, [pendingBookings]);
+  }, [pendingBookings.length]);
 
   const loadBookingsAndStats = async () => {
     try {
@@ -767,15 +778,15 @@ export default function HistoryScreen() {
               const isUrgent = secondsLeft > 0 && secondsLeft <= 300; // Less than 5 minutes
               
               return (
-                <TouchableOpacity
-                  key={bookingId || index}
-                  style={styles.tripCard}
-                  onPress={() => {
-                    setSelectedPendingBooking(booking);
-                    setShowPendingModal(true);
-                  }}
-                  activeOpacity={0.7}
-                >
+              <TouchableOpacity
+                key={`${bookingId || index}-${countdownTimers[bookingId] || 0}`}
+                style={styles.tripCard}
+                onPress={() => {
+                  setSelectedPendingBooking(booking);
+                  setShowPendingModal(true);
+                }}
+                activeOpacity={0.7}
+              >
                   <View style={styles.tripHeader}>
                     <Text style={styles.tripVehicle}>
                       {vehicle?.brand} {vehicle?.model}
