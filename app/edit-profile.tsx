@@ -128,7 +128,7 @@ export default function EditProfileScreen() {
         setEditForm((prev) => ({ ...prev, avatar: imageFile as any }));
       }
     } catch (error) {
-      console.error('Error picking image from camera:', error);
+      
       Alert.alert('Lỗi', 'Không thể chụp ảnh. Vui lòng thử lại.');
     }
   };
@@ -161,7 +161,7 @@ export default function EditProfileScreen() {
         setEditForm((prev) => ({ ...prev, avatar: imageFile as any }));
       }
     } catch (error) {
-      console.error('Error picking image from gallery:', error);
+      
       Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại.');
     }
   };

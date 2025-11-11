@@ -52,7 +52,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (userLocation && stations.length > 0 && !distancesCalculated) {
-      console.log('📍 Calculating distances once...');
+      
       calculateDistances();
     }
   }, [userLocation, stations.length]);
@@ -64,7 +64,7 @@ export default function HomeScreen() {
   const requestLocationPermission = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      console.log('📍 Location permission:', status);
+      
       
       if (status === 'granted') {
         setLocationPermission(true);
@@ -73,10 +73,7 @@ export default function HomeScreen() {
         });
         setUserLocation(location);
         
-        console.log('📍 User location:', {
-          lat: location.coords.latitude,
-          lng: location.coords.longitude,
-        });
+        
         
         // Lấy địa chỉ từ tọa độ
         try {
@@ -90,14 +87,14 @@ export default function HomeScreen() {
             setSelectedLocation(locationText);
           }
         } catch (error) {
-          console.log('📍 Cannot reverse geocode, keeping "Vị trí hiện tại"');
+          
           setSelectedLocation('Vị trí hiện tại');
         }
       } else {
-        console.log('📍 Location permission denied');
+        
       }
     } catch (error) {
-      console.error('Error getting location:', error);
+      
     }
   };
 
@@ -118,16 +115,12 @@ export default function HomeScreen() {
 
   const calculateDistances = () => {
     if (!userLocation) {
-      console.log('📍 No user location yet');
+      
       return;
     }
 
-    console.log('📍 Calculating distances for', stations.length, 'stations');
-    console.log('📍 First station GPS:', {
-      name: stations[0]?.name,
-      lat: stations[0]?.latitude,
-      lng: stations[0]?.longitude,
-    });
+    
+    
 
     const stationsWithDistance = stations.map((station) => {
       if (station.latitude && station.longitude) {
@@ -144,7 +137,7 @@ export default function HomeScreen() {
 
     // Đếm số trạm có distance
     const stationsWithDistanceCount = stationsWithDistance.filter(s => s.distance).length;
-    console.log(`📍 Calculated distances for ${stationsWithDistanceCount}/${stations.length} stations`);
+    
 
     // Sắp xếp theo khoảng cách gần nhất
     const sorted = stationsWithDistance.sort((a, b) => {
@@ -153,12 +146,6 @@ export default function HomeScreen() {
       return a.distance - b.distance;
     });
 
-    console.log('📍 Nearest station:', {
-      name: sorted[0]?.name,
-      distance: sorted[0]?.distance?.toFixed(1) + ' km',
-      lat: sorted[0]?.latitude,
-      lng: sorted[0]?.longitude,
-    });
 
     setStations(sorted);
     setDistancesCalculated(true);
@@ -173,7 +160,7 @@ export default function HomeScreen() {
       // Thử dùng tọa độ quận/huyện trước (nhanh và chính xác hơn)
       const districtCoords = getDistrictCoordinates(district, city);
       if (districtCoords) {
-        console.log(`✅ Using district center for ${district}:`, districtCoords);
+        
         return districtCoords;
       }
       
@@ -185,7 +172,7 @@ export default function HomeScreen() {
       const results = await Location.geocodeAsync(fullAddress);
       
       if (results && results.length > 0) {
-        console.log(`✅ Geocoded address:`, results[0]);
+        
         return {
           latitude: results[0].latitude,
           longitude: results[0].longitude,
@@ -193,7 +180,7 @@ export default function HomeScreen() {
       }
       return null;
     } catch (error) {
-      console.log(`❌ Cannot geocode: ${address}`);
+      
       return null;
     }
   };
@@ -207,7 +194,7 @@ export default function HomeScreen() {
       });
       
       const apiStations = response.stations || [];
-      console.log('📍 Loaded', apiStations.length, 'stations from API');
+      
       
       // Tự động chuyển address thành GPS nếu chưa có
       const stationsWithGPS = await Promise.all(
@@ -219,7 +206,7 @@ export default function HomeScreen() {
           
           // Nếu chưa có GPS, dùng district hoặc address để geocode
           if (station.district || station.address) {
-            console.log(`🔄 Getting GPS for: ${station.name}`);
+            
             const coords = await geocodeAddress(
               station.address || '', 
               station.district, 
@@ -227,7 +214,7 @@ export default function HomeScreen() {
             );
             
             if (coords) {
-              console.log(`✅ ${station.name}: ${coords.latitude}, ${coords.longitude}`);
+              
               return {
                 ...station,
                 latitude: coords.latitude,
@@ -236,18 +223,18 @@ export default function HomeScreen() {
             }
           }
           
-          console.log(`⚠️ ${station.name}: No GPS available`);
+          
           return station;
         })
       );
       
       const stationsWithGPSCount = stationsWithGPS.filter(s => s.latitude && s.longitude).length;
-      console.log(`📍 ${stationsWithGPSCount}/${stationsWithGPS.length} stations have GPS`);
+      
       
       setStations(stationsWithGPS);
       setDistancesCalculated(false);
     } catch (error) {
-      console.error('Error loading stations:', error);
+      
       setStations([]);
       setDistancesCalculated(false);
     } finally {

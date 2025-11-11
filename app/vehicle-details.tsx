@@ -36,9 +36,9 @@ export default function VehicleDetailsScreen() {
       setLoading(true);
       const data = await vehiclesAPI.getVehicleById(vehicleId);
       setVehicle(data);
-      console.log('Vehicle details:', data);
+      
     } catch (error) {
-      console.error('Error loading vehicle details:', error);
+      
       Alert.alert('Lỗi', 'Không thể tải thông tin xe');
     } finally {
       setLoading(false);

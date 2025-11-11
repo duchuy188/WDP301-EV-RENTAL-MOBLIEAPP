@@ -78,7 +78,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
         set({ mode: savedMode, colors });
       }
     } catch (error) {
-      console.error('Error loading theme:', error);
+      
     }
   },
 }));

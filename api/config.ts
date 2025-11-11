@@ -20,7 +20,7 @@ apiClient.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (error) {
-      console.error('Error getting token from AsyncStorage:', error);
+      
     }
 
     // If sending FormData, ensure we don't have a manually set Content-Type
@@ -37,15 +37,6 @@ apiClient.interceptors.request.use(
       }
     }
 
-    // DEBUG: Log request in development
-    if (__DEV__) {
-      console.log('🚀 API Request:', {
-        method: config.method?.toUpperCase(),
-        url: `${config.baseURL}${config.url}`,
-        headers: config.headers,
-        data: isFormData(config.data) ? '[FormData]' : config.data,
-      });
-    }
 
     return config;
   },
@@ -55,37 +46,12 @@ apiClient.interceptors.request.use(
 // Response interceptor for error handling
 apiClient.interceptors.response.use(
   (response: any) => {
-    // DEBUG: Log successful response in development
-    if (__DEV__) {
-      console.log('✅ API Response:', {
-        status: response.status,
-        url: response.config.url,
-        data: response.data,
-      });
-    }
     return response;
   },
   async (error: any) => {
     const status = error.response?.status;
     const url = error.config?.url;
     
-    // DEBUG: Log error in development
-    if (__DEV__) {
-      // 404 không phải là lỗi nghiêm trọng trong một số trường hợp (chatbot history, etc.)
-      if (status === 404) {
-        console.log('ℹ️  API Not Found (404):', {
-          url,
-          message: error.response?.data?.message || 'Resource not found',
-        });
-      } else {
-        console.error('❌ API Error:', {
-          status,
-          url,
-          message: error.response?.data?.message || error.message,
-          data: error.response?.data,
-        });
-      }
-    }
 
     if (status === 401) {
       // Skip redirect for login/register/forgot-password/change-password endpoints
@@ -105,7 +71,7 @@ apiClient.interceptors.response.use(
           // Navigate to login screen
           router.replace('/(auth)/login');
         } catch (e) {
-          console.error('Error clearing auth data:', e);
+          
         }
       }
     }

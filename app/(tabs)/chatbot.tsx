@@ -221,8 +221,8 @@ export default function ChatbotScreen() {
 
   const handleOpenLink = async (url: string, bookingId?: string) => {
     try {
-      console.log('🔗 [Chatbot] Attempting to open URL:', url);
-      console.log('📋 [Chatbot] Booking ID:', bookingId);
+      
+      
       
       // Check if it's a payment link (VNPay) - case insensitive
       const urlLower = url.toLowerCase();
@@ -233,10 +233,10 @@ export default function ChatbotScreen() {
         urlLower.includes('sandbox.vnpayment.vn') ||
         urlLower.includes('vnpayment.vn');
       
-      console.log('💳 [Chatbot] Is payment link?', isPaymentLink);
+      
       
       if (isPaymentLink) {
-        console.log('✅ [Chatbot] Opening VNPay WebView screen...');
+        
         
         // Navigate to VNPay WebView screen
         router.push({
@@ -248,7 +248,7 @@ export default function ChatbotScreen() {
           }
         });
       } else {
-        console.log('🌐 [Chatbot] Opening in browser...');
+        
         // For other links, open in browser
         const canOpen = await Linking.canOpenURL(url);
         if (canOpen) {
@@ -258,13 +258,13 @@ export default function ChatbotScreen() {
         }
       }
     } catch (error) {
-      console.error('❌ [Chatbot] Error opening URL:', error);
+      
       Alert.alert('Lỗi', 'Không thể mở liên kết');
     }
   };
 
   useEffect(() => {
-    console.log('🟢 [Chatbot] Component mounted - loading initial data...');
+    
     loadChatHistory();
     loadSuggestions();
   }, []);
@@ -272,7 +272,7 @@ export default function ChatbotScreen() {
   // Listen for payment completion events
   useEffect(() => {
     const handlePaymentSuccess = (event: any) => {
-      console.log('💰 [Chatbot] Payment success event received:', event);
+      
       
       const notificationMessage: Message = {
         id: `payment-success-${Date.now()}`,
@@ -332,11 +332,8 @@ export default function ChatbotScreen() {
       // Hiển thị welcome message cho chat mới
       showWelcomeMessage();
       
-      if (__DEV__) {
-        console.log('[Chatbot] Started fresh chat session:', newSessionId);
-      }
     } catch (error) {
-      console.error('Error in loadChatHistory:', error);
+      
       showWelcomeMessage();
     }
   };
@@ -352,11 +349,8 @@ export default function ChatbotScreen() {
       // Reload suggestions for new chat
       await loadSuggestions();
       
-      if (__DEV__) {
-        console.log('[Chatbot] Started new chat session:', newSessionId);
-      }
     } catch (error) {
-      console.error('Error starting new chat:', error);
+      
     }
   };
 
@@ -364,14 +358,11 @@ export default function ChatbotScreen() {
     setLoadingHistory(true);
     try {
       const response = await getConversations(50);
-      if (__DEV__) {
-        console.log('[Chatbot] Conversations response:', response);
-      }
       
       const convList = response.data?.conversations || response.data || [];
       setConversations(Array.isArray(convList) ? convList : []);
     } catch (error) {
-      console.error('Error loading conversations:', error);
+      
       setConversations([]);
     } finally {
       setLoadingHistory(false);
@@ -379,14 +370,10 @@ export default function ChatbotScreen() {
   };
 
   const loadSuggestions = async () => {
-    console.log('🔵 [Chatbot] Loading suggestions from API...');
+    
     try {
       const response = await getSuggestions();
-      console.log('✅ [Chatbot] Suggestions API response:', JSON.stringify(response, null, 2));
-      
       const suggestionsData = response.data?.suggestions || [];
-      console.log('📝 [Chatbot] Extracted suggestions data:', suggestionsData);
-      console.log('📊 [Chatbot] Is array?', Array.isArray(suggestionsData), 'Length:', suggestionsData.length);
       
       const validSuggestions = Array.isArray(suggestionsData) && suggestionsData.length > 0 
         ? suggestionsData 
@@ -396,11 +383,11 @@ export default function ChatbotScreen() {
             'Trạm xe gần nhất ở đâu?'
           ];
       
-      console.log('✨ [Chatbot] Final suggestions to display:', validSuggestions);
+      
       setSuggestions(validSuggestions);
     } catch (error) {
-      console.error('❌ [Chatbot] Error loading suggestions:', error);
-      console.log('⚠️ [Chatbot] Using fallback suggestions');
+      
+      
       // Fallback to default suggestions if API fails
       setSuggestions(CHATBOT.suggestedQuestions);
     }
@@ -450,7 +437,7 @@ export default function ChatbotScreen() {
         showWelcomeMessage();
       }
     } catch (error) {
-      console.error('Error loading conversation:', error);
+      
     }
   };
 
@@ -478,9 +465,6 @@ export default function ChatbotScreen() {
 
       const response = await sendChatMessage(payload);
 
-      if (__DEV__) {
-        console.log('[Chatbot] Send message response:', JSON.stringify(response, null, 2));
-      }
 
       const success = response.success || response.data?.success;
       const aiText = response.data?.message || response.data?.response || response.message;
@@ -488,12 +472,6 @@ export default function ChatbotScreen() {
       const responseActions = response.actions || response.data?.actions || [];
       const responseContext = response.data?.context;
       
-      if (__DEV__) {
-        console.log('[Chatbot] Success:', success);
-        console.log('[Chatbot] aiText:', aiText?.substring(0, 50) + '...');
-        console.log('[Chatbot] Response suggestions:', responseSuggestions);
-        console.log('[Chatbot] Response actions:', responseActions);
-      }
       
       // Extract URLs from message
       const urls = extractUrls(aiText || '');
@@ -503,7 +481,7 @@ export default function ChatbotScreen() {
       
       // Update suggestions if provided in response
       if (responseSuggestions && Array.isArray(responseSuggestions) && responseSuggestions.length > 0) {
-        console.log('🔄 [Chatbot] Updating suggestions from response:', responseSuggestions);
+        
         setSuggestions(responseSuggestions);
       }
       
@@ -535,20 +513,12 @@ export default function ChatbotScreen() {
         throw new Error('Không nhận được phản hồi từ server');
       }
     } catch (error: any) {
-      console.error('Error sending message:', error);
+      
       
       // Check if backend returned a message even with error status (e.g., "No pending booking to cancel")
       const backendMessage = error.response?.data?.message || error.response?.data?.data?.message;
       const backendSuggestions = error.response?.data?.suggestions || error.response?.data?.data?.suggestions;
       
-      if (__DEV__) {
-        console.log('🔍 [Chatbot] Error response:', {
-          status: error.response?.status,
-          message: backendMessage,
-          suggestions: backendSuggestions,
-          fullData: error.response?.data
-        });
-      }
       
       if (backendMessage) {
         // Backend sent a user-friendly message (even with 500 status)
@@ -1005,9 +975,6 @@ export default function ChatbotScreen() {
                       const paymentLink = extractPaymentLink(message.text);
                       const bookingId = extractBookingId(message.text);
                       
-                      if (__DEV__ && bookingId) {
-                        console.log('📝 [Chatbot] Extracted booking ID:', bookingId, 'from message');
-                      }
                       
                       // Special handling for payment action
                       if (action === 'pay_holding_fee' && paymentLink) {
@@ -1046,14 +1013,14 @@ export default function ChatbotScreen() {
                                       style: 'destructive',
                                       onPress: async () => {
                                         try {
-                                          console.log('🚫 [Chatbot] Cancelling booking:', bookingId);
+                                          
                                           setIsLoading(true);
                                           
                                           // Import bookingAPI dynamically
                                           const { bookingAPI } = await import('@/api/bookingAPI');
                                           const response = await bookingAPI.cancelPendingBooking(bookingId);
                                           
-                                          console.log('✅ [Chatbot] Cancel response:', response);
+                                          
                                           
                                           // Show success message in chat
                                           const successMessage: Message = {
@@ -1070,7 +1037,7 @@ export default function ChatbotScreen() {
                                             scrollViewRef.current?.scrollToEnd({ animated: true });
                                           }, 100);
                                         } catch (error: any) {
-                                          console.error('❌ [Chatbot] Error cancelling booking:', error);
+                                          
                                           
                                           const errorMsg = error.response?.data?.message || error.message || 'Không thể hủy booking';
                                           
@@ -1149,7 +1116,7 @@ export default function ChatbotScreen() {
                           {isPaymentLink ? (
                             <>
                               <CreditCard size={14} color="#FFFFFF" />
-                              <Text style={styles.suggestionButtonText}>💳 Thanh toán ngay</Text>
+                              <Text style={styles.suggestionButtonText}> Thanh toán ngay</Text>
                             </>
                           ) : (
                             <>

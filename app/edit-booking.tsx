@@ -88,14 +88,8 @@ export default function EditBookingScreen() {
       setBooking(bookingData);
 
       // Parse dates properly from YYYY-MM-DD format
-      console.log('📅 Full booking data:', bookingData);
-      console.log('📅 Original dates from API:', {
-        start_date: bookingData.start_date,
-        end_date: bookingData.end_date,
-        pickup_time: bookingData.pickup_time,
-        start_date_type: typeof bookingData.start_date,
-        end_date_type: typeof bookingData.end_date
-      });
+      
+      
 
       // Deposit percentage is ALWAYS 50% for rentals >= 3 days (backend business logic)
       // This matches backend DepositService behavior
@@ -104,15 +98,12 @@ export default function EditBookingScreen() {
       // Only calculate from existing booking data if deposit exists
       if (bookingData.deposit_amount && bookingData.total_price > 0) {
         vehicleDepositPercentage = (bookingData.deposit_amount / bookingData.total_price) * 100;
-        console.log('✅ Calculated deposit_percentage from booking data:', vehicleDepositPercentage.toFixed(2) + '%');
-      } else {
-        console.log('✅ Using default deposit_percentage: 50% (for >= 3 days rental)');
       }
 
       // Parse date from DD/MM/YYYY HH:mm:ss format
       const parseDate = (dateStr: string): Date => {
         if (!dateStr) {
-          console.error('❌ Date string is empty or undefined');
+          
           return new Date(); // Fallback to today
         }
 
@@ -129,20 +120,12 @@ export default function EditBookingScreen() {
         }
 
         // Fallback: try regular Date constructor
-        console.warn('⚠️ Falling back to default Date parser for:', dateStr);
         return new Date(dateStr);
       };
 
       const parsedStartDate = parseDate(bookingData.start_date);
       const parsedEndDate = parseDate(bookingData.end_date);
 
-      console.log('📅 Parsed dates:', {
-        parsedStartDate,
-        parsedEndDate,
-        isValidStart: !isNaN(parsedStartDate.getTime()),
-        isValidEnd: !isNaN(parsedEndDate.getTime())
-      });
-      
       setStartDate(parsedStartDate);
       setEndDate(parsedEndDate);
       
@@ -164,13 +147,6 @@ export default function EditBookingScreen() {
       // Set deposit percentage from fetched vehicle data
       setDepositPercentage(vehicleDepositPercentage);
       
-      console.log('💰 Deposit data:', {
-        deposit_amount: bookingData.deposit_amount,
-        total_price: bookingData.total_price,
-        vehicle_deposit_percentage: vehicleDepositPercentage,
-        calculated_percentage: bookingData.total_price > 0 ? (bookingData.deposit_amount / bookingData.total_price * 100) : 0
-      });
-      
       // Set deposit amount from booking
       setOriginalDepositAmount(bookingData.deposit_amount || 0);
       if (bookingData.deposit_amount) {
@@ -178,7 +154,7 @@ export default function EditBookingScreen() {
       }
 
     } catch (error: any) {
-      console.error('Error loading booking:', error);
+      
       Alert.alert('Lỗi', 'Không thể tải thông tin đặt xe');
       router.back();
     } finally {
@@ -192,7 +168,7 @@ export default function EditBookingScreen() {
       const response = await stationAPI.getStation({ status: 'active' });
       setStations(response.stations || []);
     } catch (error) {
-      console.error('Error loading stations:', error);
+      
     } finally {
       setLoadingStations(false);
     }
@@ -291,7 +267,7 @@ export default function EditBookingScreen() {
         reason_for_change: reasonForChange.trim(),
       };
 
-      console.log('Updating booking with:', updateData);
+      
 
       const response = await bookingAPI.updateBooking(bookingId, updateData);
 
@@ -317,7 +293,7 @@ export default function EditBookingScreen() {
       );
 
     } catch (error: any) {
-      console.error('Error updating booking:', error);
+      
       const errorMessage = error.response?.data?.message || error.message || 'Không thể cập nhật booking';
       Alert.alert('Cập nhật thất bại', errorMessage);
     } finally {

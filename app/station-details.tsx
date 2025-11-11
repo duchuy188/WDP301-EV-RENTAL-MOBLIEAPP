@@ -127,7 +127,7 @@ export default function StationDetailsScreen() {
       
       setStation({ ...stationData, distance });
     } catch (error) {
-      console.error('Error loading station details:', error);
+      
     } finally {
       setLoading(false);
     }
@@ -141,7 +141,7 @@ export default function StationDetailsScreen() {
       setVehicles(vehiclesList);
       setFilteredVehicles(vehiclesList);
     } catch (error) {
-      console.error('Error loading vehicles:', error);
+      
       setVehicles([]);
       setFilteredVehicles([]);
     } finally {

@@ -152,13 +152,10 @@ export default function BookingScreen() {
         notes: notes || undefined,
       };
 
-      console.log('Booking data:', bookingData);
+      
       
       const response = await bookingAPI.postBooking(bookingData);
       
-      console.log('Booking response:', JSON.stringify(response, null, 2));
-      console.log('Response.booking:', response.booking);
-      console.log('Response keys:', Object.keys(response));
 
       if (response.requiresKYC) {
         Alert.alert(
@@ -201,12 +198,6 @@ export default function BookingScreen() {
       
       // Check if booking was created successfully
       if (!createdBooking || !createdBooking._id) {
-        console.error('Invalid booking response structure:', {
-          response,
-          createdBooking,
-          hasBooking: !!response.booking,
-          hasData: !!(responseData.data),
-        });
         Alert.alert(
           'Lỗi',
           'Không thể tạo đơn đặt xe. Vui lòng thử lại.',
@@ -235,7 +226,7 @@ export default function BookingScreen() {
         ]
       );
     } catch (error: any) {
-      console.error('Booking error:', error);
+      
       const errorMessage = error.response?.data?.message || error.message || 'Không thể đặt xe';
       Alert.alert('Đặt xe thất bại', errorMessage);
     } finally {

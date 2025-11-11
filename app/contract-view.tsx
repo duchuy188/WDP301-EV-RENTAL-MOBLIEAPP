@@ -52,18 +52,18 @@ export default function ContractViewScreen() {
       if (viewMode === 'html') {
         // For HTML mode, get HTML content directly
         const html = await contractAPI.getContractHtml(contractId);
-        console.log('📄 Loaded HTML content, length:', html.length);
+        
         setContractHtml(html);
       } else {
         // For PDF mode, build URL without token in query string
         // We'll pass the token via headers in WebView
         const apiClient = require('@/api/config').default;
         const pdfUrl = `${apiClient.defaults.baseURL}/contracts/${contractId}/pdf`;
-        console.log('📄 Using backend PDF URL:', pdfUrl);
+        
         setContractUrl(pdfUrl);
       }
     } catch (error) {
-      console.error('Error loading contract:', error);
+      
       Alert.alert('Lỗi', 'Không thể tải hợp đồng');
       router.back();
     } finally {
@@ -84,7 +84,7 @@ export default function ContractViewScreen() {
       const apiClient = require('@/api/config').default;
       const pdfUrl = `${apiClient.defaults.baseURL}/contracts/${contractId}/pdf`;
       
-      console.log('⬇️ Downloading PDF from:', pdfUrl);
+      
       
       // Generate filename with contract ID
       const filename = `contract-${contractId}.pdf`;
@@ -101,12 +101,12 @@ export default function ContractViewScreen() {
         }
       );
       
-      console.log('✅ Downloaded to:', downloadResult.uri);
-      console.log('📊 File info:', downloadResult);
+      
+      
       
       // Check if file actually has content
       const fileInfo = await FileSystem.getInfoAsync(downloadResult.uri);
-      console.log('📄 File size:', fileInfo.size);
+      
       
       if (!fileInfo.exists || fileInfo.size === 0) {
         Alert.alert('Lỗi', 'File tải về bị lỗi hoặc rỗng');
@@ -129,7 +129,7 @@ export default function ContractViewScreen() {
         Alert.alert('Thành công', `File đã lưu tại: ${downloadResult.uri}`);
       }
     } catch (error: any) {
-      console.error('Error downloading contract:', error);
+      
       Alert.alert('Lỗi', 'Không thể tải hợp đồng: ' + error.message);
     } finally {
       setDownloading(false);
@@ -204,7 +204,7 @@ export default function ContractViewScreen() {
         )}
         onError={(syntheticEvent) => {
           const { nativeEvent } = syntheticEvent;
-          console.error('WebView error: ', nativeEvent);
+          
           Alert.alert('Lỗi', 'Không thể hiển thị hợp đồng');
         }}
       />

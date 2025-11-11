@@ -74,17 +74,17 @@ export default function RentalDetailsScreen() {
     try {
       setLoading(true);
       const response = await rentalAPI.getRentalById(rentalId);
-      console.log('Rental details:', response);
+      
       const rentalData = response.data || response.rental || response;
-      console.log('💰 Rental payments:', rentalData.payments);
-      console.log('💰 Rental total_fees:', rentalData.total_fees);
+      
+      
       if (rentalData.payments && rentalData.payments.length > 0) {
         const total = rentalData.payments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
-        console.log('💰 Calculated total from payments:', total);
+        
       }
       setRental(rentalData);
     } catch (error) {
-      console.error('Error loading rental details:', error);
+      
       Alert.alert('Lỗi', 'Không thể tải thông tin thuê xe');
       router.back();
     } finally {
@@ -95,16 +95,16 @@ export default function RentalDetailsScreen() {
   const checkExistingFeedback = async () => {
     try {
       setLoadingFeedback(true);
-      console.log('🔍 Checking existing feedback for rental:', rentalId);
+      
       const feedback = await feedbackAPI.getFeedbackByRental(rentalId);
-      console.log('📋 Existing feedback result:', feedback);
-      console.log('📋 Feedback type:', feedback?.type);
-      console.log('📋 Feedback category:', feedback?.category);
-      console.log('📋 Feedback staff_role:', feedback?.staff_role);
-      console.log('📋 Setting existingFeedback state to:', feedback ? 'Feedback object' : 'null');
+      
+      
+      
+      
+      
       setExistingFeedback(feedback);
     } catch (error) {
-      console.error('❌ Error checking feedback:', error);
+      
       setExistingFeedback(null);
     } finally {
       setLoadingFeedback(false);

@@ -100,7 +100,7 @@ export default function ProfileScreen() {
       });
       
     } catch (error) {
-      console.error('❌ Error fetching bookings:', error);
+      
     } finally {
       setLoadingActivities(false);
     }
@@ -127,11 +127,7 @@ export default function ProfileScreen() {
     
     // Lấy mã booking
     const bookingCode = booking.code || booking._id?.slice(-6)?.toUpperCase() || 'N/A';
-    console.log('📝 Booking code:', { 
-      code: booking.code, 
-      id: booking._id, 
-      result: bookingCode 
-    });
+    
     
     // Tên xe và model
     const vehicleCode = booking.vehicle_id?.name || 'Xe máy';
@@ -187,7 +183,7 @@ export default function ProfileScreen() {
       if (isNaN(date.getTime())) return null;
       return date;
     } catch (error) {
-      console.error('Error parsing date:', dateString, error);
+      
       return null;
     }
   };

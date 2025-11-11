@@ -132,12 +132,12 @@ export default function BookingDetailsScreen() {
       const editAllowed = checkCanEditBooking(response.booking);
       setCanEdit(editAllowed);
       
-      console.log('Booking details:', response);
-      console.log('Booking payments:', response.booking.payments);
-      console.log('Booking total_price:', response.booking.total_price);
-      console.log('Contract ID from booking:', response.booking.contract_id);
-      console.log('Booking status:', response.booking.status);
-      console.log('Can edit booking:', editAllowed);
+      
+      
+      
+      
+      
+      
       
       // If booking has contract_id, use it
       if (response.booking.contract_id) {
@@ -150,7 +150,7 @@ export default function BookingDetailsScreen() {
       // Try to find rental for this booking
       loadRentalByBooking(response.booking);
     } catch (error) {
-      console.error('Error loading booking details:', error);
+      
       Alert.alert('Lỗi', 'Không thể tải thông tin đặt xe');
       router.back();
     } finally {
@@ -162,7 +162,7 @@ export default function BookingDetailsScreen() {
     try {
       // Get all rentals and find by booking_id
       const response = await rentalAPI.getRentals();
-      console.log('🔍 Searching rental for booking:', bookingData.code);
+      
       
       if (response.rentals && response.rentals.length > 0) {
         const bookingIdToFind = bookingData._id;
@@ -176,13 +176,13 @@ export default function BookingDetailsScreen() {
         
         if (matchingRental) {
           setRentalId(matchingRental._id);
-          console.log('✅ Found rental:', matchingRental._id, matchingRental.code);
+          
         } else {
-          console.log('❌ No rental found for this booking');
+          
         }
       }
     } catch (error) {
-      console.error('❌ Error loading rental:', error);
+      
     }
   };
 
@@ -192,18 +192,18 @@ export default function BookingDetailsScreen() {
       
       // Get all contracts and find by customer + vehicle + station
       const response = await contractAPI.getContracts({ limit: 100 });
-      console.log('🔍 Searching contract for booking:', bookingData.code);
-      console.log('Total contracts:', response.data?.contracts?.length || 0);
+      
+      
       
       if (response.data?.contracts && response.data.contracts.length > 0) {
         const userId = bookingData.user_id?._id || bookingData.user_id;
         const vehicleId = bookingData.vehicle_id?._id || bookingData.vehicle_id;
         const stationId = bookingData.station_id?._id || bookingData.station_id;
         
-        console.log('🔎 Looking for contract with:');
-        console.log('  - Customer ID:', userId);
-        console.log('  - Vehicle ID:', vehicleId);
-        console.log('  - Station ID:', stationId);
+        
+        
+        
+        
         
         // Find contract matching customer, vehicle, and station
         const matchingContract = response.data.contracts.find(
@@ -212,14 +212,7 @@ export default function BookingDetailsScreen() {
             const matchVehicle = contract.vehicle?._id === vehicleId;
             const matchStation = contract.station?._id === stationId;
             
-            console.log(`Checking contract ${contract.code}:`, {
-              matchCustomer,
-              matchVehicle,
-              matchStation,
-              contractCustomer: contract.customer?._id,
-              contractVehicle: contract.vehicle?._id,
-              contractStation: contract.station?._id,
-            });
+            
             
             return matchCustomer && matchVehicle && matchStation;
           }
@@ -227,16 +220,16 @@ export default function BookingDetailsScreen() {
         
         if (matchingContract) {
           setContractId(matchingContract._id);
-          console.log('✅ Found contract!');
-          console.log('  - Contract ID:', matchingContract._id);
-          console.log('  - Contract Code:', matchingContract.code);
-          console.log('  - Status:', matchingContract.status);
+          
+          
+          
+          
         } else {
-          console.log('❌ No matching contract found');
+          
         }
       }
     } catch (error) {
-      console.error('❌ Error loading contract:', error);
+      
     } finally {
       setLoadingContract(false);
     }
@@ -246,27 +239,27 @@ export default function BookingDetailsScreen() {
   const checkCanEditBooking = (bookingData: any): boolean => {
     // 1. Must be online booking
     if (bookingData.booking_type !== 'online') {
-      console.log('❌ Cannot edit: not online booking');
+      
       return false;
     }
 
     // 2. Must have paid holding fee
     const holdingFee = bookingData.holding_fee;
     if (!holdingFee || holdingFee.status !== 'paid') {
-      console.log('❌ Cannot edit: holding fee not paid');
+      
       return false;
     }
 
     // 3. Must be in pending status
     if (bookingData.status !== 'pending') {
-      console.log('❌ Cannot edit: status is not pending');
+      
       return false;
     }
 
     // 4. Edit count must be less than 1
     const editCount = bookingData.edit_count || 0;
     if (editCount >= 1) {
-      console.log('❌ Cannot edit: already edited once');
+      
       return false;
     }
 
@@ -282,11 +275,11 @@ export default function BookingDetailsScreen() {
 
     const hoursDiff = (pickupDate.getTime() - now.getTime()) / (1000 * 60 * 60);
     if (hoursDiff < 24) {
-      console.log('❌ Cannot edit: less than 24 hours before pickup');
+      
       return false;
     }
 
-    console.log('✅ Booking can be edited');
+    
     return true;
   };
 
@@ -325,7 +318,7 @@ export default function BookingDetailsScreen() {
         { text: 'OK', onPress: () => router.push('/(tabs)/history') },
       ]);
     } catch (error: any) {
-      console.error('Error canceling booking:', error);
+      
       Alert.alert('Lỗi', error.response?.data?.message || 'Không thể hủy đặt xe');
     } finally {
       setCanceling(false);
@@ -396,18 +389,18 @@ export default function BookingDetailsScreen() {
     // Ưu tiên tính từ payments nếu có
     if (booking.payments && booking.payments.length > 0) {
       const total = booking.payments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
-      console.log('💰 Total from payments:', total);
+      
       return total;
     }
     
     // Nếu không có payments, thử tính từ các phí
     if (booking.total_price > 0 || booking.deposit_amount > 0 || booking.late_fee > 0 || booking.damage_fee > 0) {
       const total = (booking.total_price || 0) + (booking.late_fee || 0) + (booking.damage_fee || 0) + (booking.other_fees || 0);
-      console.log('💰 Total from fees:', total);
+      
       return total;
     }
     
-    console.log('💰 No price data available');
+    
     return 0;
   };
 
