@@ -340,8 +340,11 @@ export default function StationDetailsScreen() {
                     latitudeDelta: 0.01,
                     longitudeDelta: 0.01,
                   }}
-                  scrollEnabled={false}
-                  zoomEnabled={false}
+                  scrollEnabled={true}
+                  zoomEnabled={true}
+                  zoomControlEnabled={true}
+                  showsMyLocationButton={true}
+                  showsUserLocation={true}
                 >
                   <Marker
                     coordinate={{
