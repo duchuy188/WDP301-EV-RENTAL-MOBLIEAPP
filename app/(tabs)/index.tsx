@@ -294,8 +294,8 @@ export default function HomeScreen() {
         style={[
           styles.stationCard,
           {
-            backgroundColor: isSelected ? colors.primary : colors.surface,
-            borderColor: isSelected ? colors.primary : isNearest ? colors.primary : '#E8E8E8',
+            backgroundColor: '#FFFFFF',
+            borderColor: isNearest ? colors.primary : '#E8E8E8',
             borderWidth: isNearest ? 2 : 1,
           },
         ]}
@@ -305,10 +305,10 @@ export default function HomeScreen() {
         <View
           style={[
             styles.stationIcon,
-            { backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : '#F2F4F7' },
+            { backgroundColor: '#F2F4F7' },
           ]}
         >
-          <MapPin size={20} color={isSelected ? '#fff' : colors.primary} />
+          <MapPin size={20} color={colors.primary} />
         </View>
 
         <View style={styles.stationInfo}>
@@ -316,7 +316,7 @@ export default function HomeScreen() {
             <Text
               style={[
                 styles.stationName,
-                { color: isSelected ? '#fff' : colors.text, flex: 1 },
+                { color: colors.text, flex: 1 },
               ]}
               numberOfLines={1}
             >
@@ -325,22 +325,14 @@ export default function HomeScreen() {
             {station.distance !== undefined && (
               <View style={[
                 styles.distanceBadge,
-                { 
-                  backgroundColor: isSelected 
-                    ? 'rgba(255,255,255,0.2)' 
-                    : isNearest 
-                      ? colors.primary 
-                      : '#F0FDF4'
+                {
+                  backgroundColor: isNearest ? colors.primary : '#F0FDF4'
                 }
               ]}>
                 <Text style={[
                   styles.distanceBadgeText,
-                  { 
-                    color: isSelected 
-                      ? '#fff' 
-                      : isNearest 
-                        ? '#fff' 
-                        : colors.primary
+                  {
+                    color: isNearest ? '#fff' : colors.primary
                   }
                 ]}>
                   📍 {station.distance.toFixed(1)} km
@@ -349,7 +341,7 @@ export default function HomeScreen() {
             )}
           </View>
           
-          {isNearest && !isSelected && (
+          {isNearest && (
             <View style={styles.nearestBadge}>
               <Text style={styles.nearestBadgeText}>⭐ Gần nhất</Text>
             </View>
@@ -358,7 +350,7 @@ export default function HomeScreen() {
           <Text
             style={[
               styles.stationAddress,
-              { color: isSelected ? 'rgba(255,255,255,0.8)' : colors.textSecondary },
+              { color: colors.textSecondary },
             ]}
             numberOfLines={1}
           >
@@ -367,13 +359,13 @@ export default function HomeScreen() {
           <Text
             style={[
               styles.stationVehicles,
-              { color: isSelected ? '#fff' : colors.secondary },
+              { color: colors.secondary },
             ]}
           >
             {station.available_vehicles} xe có sẵn
           </Text>
         </View>
-        <ChevronRight size={20} color={isSelected ? '#fff' : colors.textSecondary} />
+        <ChevronRight size={20} color={colors.textSecondary} />
       </TouchableOpacity>
     );
   };

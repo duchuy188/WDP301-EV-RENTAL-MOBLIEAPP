@@ -18,7 +18,7 @@ import Slider from '@react-native-community/slider';
 import { useThemeStore } from '@/store/themeStore';
 import { stationAPI } from '@/api/stationAP';
 import { vehiclesAPI } from '@/api/vehiclesAPI';
-import { Station } from '@/types/station';
+import { StationWithDistance } from '@/types/station';
 import { VehicleListItem } from '@/types/vehicles';
 import { getDistrictCoordinates } from '@/utils/districtCoordinates';
 
@@ -30,7 +30,7 @@ export default function StationDetailsScreen() {
   const stationId = params.id as string;
   const distance = params.distance ? parseFloat(params.distance as string) : undefined;
 
-  const [station, setStation] = useState<Station | null>(null);
+  const [station, setStation] = useState<StationWithDistance | null>(null);
   const [vehicles, setVehicles] = useState<VehicleListItem[]>([]);
   const [filteredVehicles, setFilteredVehicles] = useState<VehicleListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -236,13 +236,13 @@ export default function StationDetailsScreen() {
           <ArrowLeft size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
-          {station.name || 'Chi tiết trạm'}
+          {station?.name || 'Chi tiết trạm'}
         </Text>
-        <View style={{ width: 40 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {station.images && station.images.length > 0 && (
+        {station?.images && station.images.length > 0 && (
           <Image
             source={{ uri: station.images[0] }}
             style={styles.stationImage}
@@ -252,8 +252,8 @@ export default function StationDetailsScreen() {
 
         <View style={styles.content}>
           <View style={styles.section}>
-            <Text style={styles.stationName}>{station.name || 'Trạm xe điện'}</Text>
-            {station.distance && station.distance > 0 && (
+            <Text style={styles.stationName}>{station?.name || 'Trạm xe điện'}</Text>
+            {station?.distance && station.distance > 0 && (
               <View style={[styles.distanceBadge, { backgroundColor: colors.primary }]}>
                 <Text style={styles.distanceBadgeText}>{`📍 ${station.distance.toFixed(1)} km`}</Text>
               </View>
@@ -267,7 +267,7 @@ export default function StationDetailsScreen() {
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Địa chỉ</Text>
               <Text style={styles.infoValue}>
-                {`${station.address || station.district || ''}, ${station.city || ''}`}
+                {[station?.address, station?.district, station?.city].filter(Boolean).join(', ') || 'Chưa có thông tin'}
               </Text>
             </View>
           </View>
@@ -279,7 +279,7 @@ export default function StationDetailsScreen() {
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Giờ hoạt động</Text>
               <Text style={styles.infoValue}>
-                {`${station.opening_time || '00:00'} - ${station.closing_time || '23:59'}`}
+                {`${station?.opening_time || '00:00'} - ${station?.closing_time || '23:59'}`}
               </Text>
             </View>
           </View>
@@ -291,12 +291,12 @@ export default function StationDetailsScreen() {
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Liên hệ</Text>
               <Text style={[styles.infoValue, { color: colors.primary }]}>
-                {station.phone || 'Chưa có'}
+                {station?.phone || 'Chưa có'}
               </Text>
             </View>
           </TouchableOpacity>
 
-          {station.email && (
+          {station?.email && (
             <TouchableOpacity style={styles.infoCard} onPress={handleEmail}>
               <View style={styles.iconContainer}>
                 <Mail size={24} color={colors.primary} />
@@ -312,22 +312,22 @@ export default function StationDetailsScreen() {
 
           <View style={styles.vehicleStats}>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{station.available_vehicles || 0}</Text>
+              <Text style={styles.statNumber}>{String(station?.available_vehicles ?? 0)}</Text>
               <Text style={styles.statLabel}>Xe có sẵn</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{station.rented_vehicles || 0}</Text>
+              <Text style={styles.statNumber}>{String(station?.rented_vehicles ?? 0)}</Text>
               <Text style={styles.statLabel}>Đang thuê</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{station.max_capacity || 0}</Text>
+              <Text style={styles.statNumber}>{String(station?.max_capacity ?? 0)}</Text>
               <Text style={styles.statLabel}>Sức chứa</Text>
             </View>
           </View>
 
-          {station.latitude && station.longitude && (
+          {station?.latitude && station?.longitude && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Vị trí trên bản đồ</Text>
               <View style={styles.mapContainer}>
@@ -355,7 +355,7 @@ export default function StationDetailsScreen() {
             </View>
           )}
 
-          {station.description && (
+          {station?.description && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Mô tả</Text>
               <Text style={styles.description}>{station.description}</Text>
@@ -369,28 +369,30 @@ export default function StationDetailsScreen() {
 
             {vehicles.length > 0 && (
               <View style={styles.filtersContainer}>
-                <View style={styles.filterSection}>
-                  <Text style={styles.filterLabel}>Loại xe:</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {vehicleTypes.map((type) => (
-                      <TouchableOpacity
-                        key={type}
-                        style={[
-                          styles.filterChip,
-                          selectedType === type && [styles.filterChipActive, { backgroundColor: colors.primary }]
-                        ]}
-                        onPress={() => setSelectedType(type)}
-                      >
-                        <Text style={[
-                          styles.filterChipText,
-                          selectedType === type && styles.filterChipTextActive
-                        ]}>
-                          {type === 'all' ? 'Tất cả' : translateType(type)}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
+                {vehicleTypes.length > 0 && (
+                  <View style={styles.filterSection}>
+                    <Text style={styles.filterLabel}>Loại xe:</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      {vehicleTypes.map((type) => (
+                        <TouchableOpacity
+                          key={type}
+                          style={[
+                            styles.filterChip,
+                            selectedType === type && [styles.filterChipActive, { backgroundColor: colors.primary }]
+                          ]}
+                          onPress={() => setSelectedType(type)}
+                        >
+                          <Text style={[
+                            styles.filterChipText,
+                            selectedType === type && styles.filterChipTextActive
+                          ]}>
+                            {type === 'all' ? 'Tất cả' : translateType(type)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
 
                 <View style={styles.filterSection}>
                   <View style={styles.priceHeader}>
@@ -416,46 +418,48 @@ export default function StationDetailsScreen() {
                   </View>
                 </View>
 
-                <View style={styles.filterSection}>
-                  <Text style={styles.filterLabel}>Mẫu xe:</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {vehicleModels.map((model) => (
-                      <TouchableOpacity
-                        key={model}
-                        style={[
-                          styles.filterChip,
-                          selectedBrand === model && [styles.filterChipActive, { backgroundColor: colors.primary }]
-                        ]}
-                        onPress={() => setSelectedBrand(model)}
-                      >
-                        <Text style={[
-                          styles.filterChipText,
-                          selectedBrand === model && styles.filterChipTextActive
-                        ]}>
-                          {model === 'all' ? 'Tất cả' : model}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
+                {vehicleModels.length > 0 && (
+                  <View style={styles.filterSection}>
+                    <Text style={styles.filterLabel}>Mẫu xe:</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      {vehicleModels.map((model) => (
+                        <TouchableOpacity
+                          key={model}
+                          style={[
+                            styles.filterChip,
+                            selectedBrand === model && [styles.filterChipActive, { backgroundColor: colors.primary }]
+                          ]}
+                          onPress={() => setSelectedBrand(model)}
+                        >
+                          <Text style={[
+                            styles.filterChipText,
+                            selectedBrand === model && styles.filterChipTextActive
+                          ]}>
+                            {model === 'all' ? 'Tất cả' : model}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
               </View>
             )}
             
             {loadingVehicles ? (
-              <ActivityIndicator style={{ marginTop: 20 }} color={colors.primary} />
+              <ActivityIndicator style={styles.loadingIndicator} color={colors.primary} />
             ) : filteredVehicles.length > 0 ? (
               filteredVehicles.map((vehicle, index) => {
-                const imageUri = vehicle.sample_image || vehicle.color_images?.[0]?.images?.[0] || vehicle.images?.[0];
-                const vehicleName = `${vehicle.brand || ''} ${vehicle.model || ''}`.trim();
+                const imageUri = vehicle?.sample_image || vehicle?.color_images?.[0]?.images?.[0] || vehicle?.images?.[0];
+                const vehicleName = [vehicle?.brand, vehicle?.model].filter(Boolean).join(' ').trim() || 'Xe điện';
                 return (
                   <TouchableOpacity
-                    key={`${vehicle.sample_vehicle_id}-${index}`}
+                    key={`${vehicle?.sample_vehicle_id}-${index}`}
                     style={styles.vehicleCard}
                     activeOpacity={0.8}
                     onPress={() => {
                       router.push({
                         pathname: '/vehicle-details',
-                        params: { id: vehicle.sample_vehicle_id }
+                        params: { id: vehicle?.sample_vehicle_id }
                       });
                     }}
                   >
@@ -466,23 +470,23 @@ export default function StationDetailsScreen() {
                         resizeMode="cover"
                       />
                     ) : (
-                      <View style={[styles.vehicleImage, { backgroundColor: '#E5E7EB', justifyContent: 'center', alignItems: 'center' }]}>
-                        <Text style={{ color: '#9CA3AF' }}>Xe</Text>
+                      <View style={[styles.vehicleImage, styles.placeholderImage]}>
+                        <Text style={styles.placeholderText}>Xe</Text>
                       </View>
                     )}
                     <View style={styles.vehicleInfo}>
                       <Text style={styles.vehicleModel} numberOfLines={1}>
-                        {vehicleName || 'Xe điện'}
+                        {vehicleName}
                       </Text>
                       <Text style={styles.vehicleSpecs}>
-                        {`⚡ ${vehicle.battery_capacity || 0} kWh • ${vehicle.max_range || 0} km`}
+                        {`⚡ ${vehicle?.battery_capacity ?? 0} kWh · ${vehicle?.max_range ?? 0} km`}
                       </Text>
                       <View style={styles.vehicleFooter}>
                         <Text style={[styles.vehiclePrice, { color: colors.primary }]}>
-                          {formatPrice(vehicle.price_per_day || 0)}/ngày
+                          {`${formatPrice(vehicle?.price_per_day ?? 0)}/ngày`}
                         </Text>
                         <Text style={styles.vehicleAvailable}>
-                          {`${vehicle.available_quantity || vehicle.total_available_quantity || 0} xe`}
+                          {`${vehicle?.available_quantity ?? vehicle?.total_available_quantity ?? 0} xe`}
                         </Text>
                       </View>
                     </View>
@@ -502,7 +506,7 @@ export default function StationDetailsScreen() {
         </View>
       </ScrollView>
 
-      {station.latitude && station.longitude && (
+      {station?.latitude && station?.longitude && (
         <View style={styles.bottomContainer}>
           <TouchableOpacity
             style={[styles.navigateButton, { backgroundColor: colors.primary }]}
@@ -542,6 +546,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     textAlign: 'center',
     marginHorizontal: 8,
+  },
+  headerSpacer: {
+    width: 40,
   },
   stationImage: {
     width: '100%',
@@ -706,6 +713,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9CA3AF',
   },
+  loadingIndicator: {
+    marginTop: 20,
+  },
   vehicleCard: {
     flexDirection: 'row',
     backgroundColor: '#fff',
@@ -720,6 +730,14 @@ const styles = StyleSheet.create({
   vehicleImage: {
     width: 120,
     height: 100,
+  },
+  placeholderImage: {
+    backgroundColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    color: '#9CA3AF',
   },
   vehicleInfo: {
     flex: 1,
