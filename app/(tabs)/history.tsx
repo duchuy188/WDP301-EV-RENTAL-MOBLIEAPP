@@ -334,6 +334,22 @@ export default function HistoryScreen() {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    
+    // If dateString contains space, it might be "DD/MM/YYYY HH:mm:ss" format
+    // Extract only the date part
+    const datePart = dateString.includes(' ') ? dateString.split(' ')[0] : dateString;
+    
+    // Check if it's already in DD/MM/YYYY format (Vietnamese format)
+    if (datePart.includes('/')) {
+      const parts = datePart.split('/');
+      if (parts.length === 3) {
+        // Already in DD/MM/YYYY format, return as is
+        return datePart;
+      }
+    }
+    
+    // Otherwise, try to parse as ISO date
     return new Date(dateString).toLocaleDateString('vi-VN');
   };
 
@@ -849,7 +865,7 @@ export default function HistoryScreen() {
                 <View style={styles.tripInfo}>
                   <Calendar size={14} color={colors.textSecondary} />
                   <Text style={styles.tripInfoText}>
-                    {booking.start_date} • {booking.pickup_time}
+                    {formatDate(booking.start_date)} • {booking.pickup_time}
                   </Text>
                 </View>
                 
