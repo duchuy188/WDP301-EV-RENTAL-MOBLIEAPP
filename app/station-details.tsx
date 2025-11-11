@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Linking,
   ActivityIndicator,
   Dimensions,
+  FlatList,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { MapPin, Clock, Phone, Mail, ArrowLeft, Navigation as NavigationIcon } from 'lucide-react-native';
@@ -35,6 +36,8 @@ export default function StationDetailsScreen() {
   const [filteredVehicles, setFilteredVehicles] = useState<VehicleListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingVehicles, setLoadingVehicles] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const flatListRef = useRef<FlatList>(null);
   
   // Filter states
   const [selectedType, setSelectedType] = useState<string>('all');
@@ -243,11 +246,47 @@ export default function StationDetailsScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {station?.images && station.images.length > 0 && (
-          <Image
-            source={{ uri: station.images[0] }}
-            style={styles.stationImage}
-            resizeMode="cover"
-          />
+          <View style={styles.imageCarouselContainer}>
+            <FlatList
+              ref={flatListRef}
+              data={station.images}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(event) => {
+                const index = Math.round(event.nativeEvent.contentOffset.x / width);
+                setCurrentImageIndex(index);
+              }}
+              keyExtractor={(item, index) => `image-${index}`}
+              renderItem={({ item }) => (
+                <Image
+                  source={{ uri: item }}
+                  style={styles.stationImage}
+                  resizeMode="cover"
+                />
+              )}
+            />
+            {station.images.length > 1 && (
+              <View style={styles.paginationContainer}>
+                {station.images.map((_, index) => (
+                  <View
+                    key={`dot-${index}`}
+                    style={[
+                      styles.paginationDot,
+                      index === currentImageIndex && styles.paginationDotActive
+                    ]}
+                  />
+                ))}
+              </View>
+            )}
+            {station.images.length > 1 && (
+              <View style={styles.imageCounter}>
+                <Text style={styles.imageCounterText}>
+                  {`${currentImageIndex + 1}/${station.images.length}`}
+                </Text>
+              </View>
+            )}
+          </View>
         )}
 
         <View style={styles.content}>
@@ -553,9 +592,47 @@ const styles = StyleSheet.create({
   headerSpacer: {
     width: 40,
   },
+  imageCarouselContainer: {
+    position: 'relative',
+  },
   stationImage: {
-    width: '100%',
-    height: 200,
+    width: width,
+    height: 250,
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    position: 'absolute',
+    bottom: 16,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  paginationDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    marginHorizontal: 3,
+  },
+  paginationDotActive: {
+    backgroundColor: '#16A34A',
+    width: 20,
+  },
+  imageCounter: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  imageCounterText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
   },
   content: { padding: 20 },
   section: { marginBottom: 20 },
