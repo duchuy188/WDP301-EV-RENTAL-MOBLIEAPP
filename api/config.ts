@@ -3,8 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 
 
-// export const API_BASE_URL = 'http://10.0.2.2:5000/api';
-export const API_BASE_URL = 'http://192.168.102.8:5000/api';
+export const API_BASE_URL = 'https://wdp301-ev-rental-backend.onrender.com/api';
+// export const API_BASE_URL = 'http://192.168.102.8:5000/api';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
