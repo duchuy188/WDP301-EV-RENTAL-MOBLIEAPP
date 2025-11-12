@@ -273,9 +273,14 @@ export default function VNPayPaymentScreen() {
                     try {
                       setIsCancelling(true);
                       
+                      console.log('🔍 Cancelling booking:', bookingId);
+                      console.log('🔍 Starts with PB:', bookingId?.startsWith('PB'));
+                      
                       // Cancel pending booking if it's a temp booking (has PB prefix)
                       if (bookingId && bookingId.startsWith('PB')) {
+                        console.log('✅ Calling cancelPendingBooking API...');
                         await bookingAPI.cancelPendingBooking(bookingId);
+                        console.log('✅ API call successful');
                         
                         // Navigate back and let useFocusEffect refresh the list
                         router.replace('/(tabs)/history');
@@ -291,10 +296,15 @@ export default function VNPayPaymentScreen() {
                         router.replace('/(tabs)/history');
                       }
                     } catch (error: any) {
+                      console.error('❌ Cancel error:', error);
+                      console.error('❌ Error response:', error.response?.data);
+                      console.error('❌ Error message:', error.message);
+                      
+                      const errorMsg = error.response?.data?.message || error.message || 'Không thể hủy đặt xe';
                       
                       Alert.alert(
                         'Lỗi',
-                        'Không thể hủy đặt xe. Vui lòng thử lại.',
+                        errorMsg,
                         [{ text: 'OK', onPress: () => router.replace('/(tabs)/history') }]
                       );
                     } finally {
