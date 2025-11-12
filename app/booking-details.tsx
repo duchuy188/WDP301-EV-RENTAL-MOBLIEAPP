@@ -265,15 +265,51 @@ export default function BookingDetailsScreen() {
 
     // 5. Must be at least 24 hours before pickup
     const now = new Date();
-    const pickupDate = new Date(bookingData.start_date);
     
-    // Parse pickup time
-    if (bookingData.pickup_time) {
-      const [hours, minutes] = bookingData.pickup_time.split(':');
-      pickupDate.setHours(parseInt(hours), parseInt(minutes), 0);
+    // Parse start_date properly from "DD/MM/YYYY HH:mm:ss" format
+    let pickupDate: Date;
+    if (bookingData.start_date && typeof bookingData.start_date === 'string') {
+      const dateStr = bookingData.start_date;
+      
+      // Check if it's in "DD/MM/YYYY HH:mm:ss" format
+      if (dateStr.includes('/')) {
+        const [datePart, timePart] = dateStr.split(' ');
+        const [day, month, year] = datePart.split('/').map(Number);
+        pickupDate = new Date(year, month - 1, day); // month is 0-indexed
+        
+        // Set time from pickup_time if available, otherwise from date string
+        if (bookingData.pickup_time) {
+          const [hours, minutes] = bookingData.pickup_time.split(':').map(Number);
+          pickupDate.setHours(hours, minutes, 0, 0);
+        } else if (timePart) {
+          const [hours, minutes] = timePart.split(':').map(Number);
+          pickupDate.setHours(hours, minutes, 0, 0);
+        }
+      } else {
+        // Fallback to regular Date parsing
+        pickupDate = new Date(bookingData.start_date);
+        if (bookingData.pickup_time) {
+          const [hours, minutes] = bookingData.pickup_time.split(':').map(Number);
+          pickupDate.setHours(hours, minutes, 0, 0);
+        }
+      }
+    } else {
+      pickupDate = new Date(bookingData.start_date);
+      if (bookingData.pickup_time) {
+        const [hours, minutes] = bookingData.pickup_time.split(':').map(Number);
+        pickupDate.setHours(hours, minutes, 0, 0);
+      }
     }
 
     const hoursDiff = (pickupDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    
+    console.log('[EDIT CHECK]', {
+      now: now.toISOString(),
+      pickupDate: pickupDate.toISOString(),
+      hoursDiff: hoursDiff.toFixed(2),
+      canEdit: hoursDiff >= 24
+    });
+    
     if (hoursDiff < 24) {
       
       return false;
