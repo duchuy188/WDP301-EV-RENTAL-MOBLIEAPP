@@ -119,7 +119,7 @@ export default function SubmitFeedbackScreen() {
         addImage(result.assets[0].uri);
       }
     } catch (error) {
-      console.error('Error picking image from camera:', error);
+      
       Alert.alert('Lỗi', 'Không thể chụp ảnh. Vui lòng thử lại.');
     }
   };
@@ -142,7 +142,7 @@ export default function SubmitFeedbackScreen() {
         addImage(result.assets[0].uri);
       }
     } catch (error) {
-      console.error('Error picking image from gallery:', error);
+      
       Alert.alert('Lỗi', 'Không thể chọn ảnh. Vui lòng thử lại.');
     }
   };
@@ -221,12 +221,7 @@ export default function SubmitFeedbackScreen() {
     try {
       setLoading(true);
       
-      console.log('📝 Submitting rating...', {
-        rentalId,
-        overallRating,
-        hasImages: selectedImages.length > 0,
-        imageCount: selectedImages.length
-      });
+      
       
       // Nếu có ảnh, dùng FormData
       if (selectedImages.length > 0) {
@@ -242,7 +237,7 @@ export default function SubmitFeedbackScreen() {
         
         // Thêm images
         selectedImages.forEach((image, index) => {
-          console.log(`Adding image ${index + 1}:`, image.name);
+          
           formData.append('images', {
             uri: image.uri,
             type: image.type,
@@ -250,7 +245,7 @@ export default function SubmitFeedbackScreen() {
           } as any);
         });
 
-        console.log('📤 Sending FormData with images...');
+        
         await feedbackAPI.createFeedback(formData);
       } else {
         // Không có ảnh, gửi JSON
@@ -265,11 +260,11 @@ export default function SubmitFeedbackScreen() {
           comment: ratingComment,
         };
 
-        console.log('📤 Sending JSON payload:', payload);
+        
         await feedbackAPI.createFeedback(payload);
       }
       
-      console.log('✅ Rating submitted successfully!');
+      
       Alert.alert(
         'Thành công',
         'Cảm ơn bạn đã đánh giá!',
@@ -284,12 +279,8 @@ export default function SubmitFeedbackScreen() {
         ]
       );
     } catch (error: any) {
-      console.error('❌ Error submitting rating:', error);
-      console.error('Error details:', {
-        message: error?.message,
-        response: error?.response?.data,
-        status: error?.response?.status,
-      });
+      
+      
       
       const errorMessage = error?.message || 
                           error?.response?.data?.message || 
@@ -307,12 +298,7 @@ export default function SubmitFeedbackScreen() {
     try {
       setLoading(true);
       
-      console.log('📝 Submitting complaint...', {
-        rentalId,
-        title: complaintTitle,
-        hasImages: selectedImages.length > 0,
-        imageCount: selectedImages.length
-      });
+      
       
       // Nếu có ảnh, dùng FormData
       if (selectedImages.length > 0) {
@@ -323,16 +309,16 @@ export default function SubmitFeedbackScreen() {
         formData.append('description', complaintDescription);
         formData.append('category', complaintCategory);
         if (complaintCategory === 'staff' && staffSubCategory) {
-          console.log('✅ Adding staff_role to FormData:', staffSubCategory);
+          
           formData.append('staff_role', staffSubCategory);
         } else if (complaintCategory === 'staff') {
-          console.log('⚠️ Category is staff but no staffSubCategory selected!');
+          
         }
         if (complaintComment) formData.append('comment', complaintComment);
         
         // Thêm images
         selectedImages.forEach((image, index) => {
-          console.log(`Adding image ${index + 1}:`, image.name);
+          
           formData.append('images', {
             uri: image.uri,
             type: image.type,
@@ -340,7 +326,7 @@ export default function SubmitFeedbackScreen() {
           } as any);
         });
 
-        console.log('📤 Sending FormData with images...');
+        
         await feedbackAPI.createFeedback(formData);
       } else {
         // Không có ảnh, gửi JSON
@@ -354,17 +340,17 @@ export default function SubmitFeedbackScreen() {
         };
 
         if (complaintCategory === 'staff' && staffSubCategory) {
-          console.log('✅ Adding staff_role to JSON:', staffSubCategory);
+          
           payload.staff_role = staffSubCategory;
         } else if (complaintCategory === 'staff') {
-          console.log('⚠️ Category is staff but no staffSubCategory selected!');
+          
         }
 
-        console.log('📤 Sending JSON payload:', payload);
+        
         await feedbackAPI.createFeedback(payload);
       }
       
-      console.log('✅ Complaint submitted successfully!');
+      
       Alert.alert(
         'Thành công',
         'Khiếu nại của bạn đã được gửi. Chúng tôi sẽ xem xét và phản hồi sớm nhất.',
@@ -379,12 +365,8 @@ export default function SubmitFeedbackScreen() {
         ]
       );
     } catch (error: any) {
-      console.error('❌ Error submitting complaint:', error);
-      console.error('Error details:', {
-        message: error?.message,
-        response: error?.response?.data,
-        status: error?.response?.status,
-      });
+      
+      
       
       const errorMessage = error?.message || 
                           error?.response?.data?.message || 

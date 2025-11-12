@@ -104,9 +104,6 @@ export const authAPI = {
           name: imageFile.name || 'avatar.jpg',
         } as any);
 
-        if (__DEV__) {
-          console.log('[updateProfile] Uploading with fetch API');
-        }
 
         // Get token từ AsyncStorage
         const AsyncStorage = require('@react-native-async-storage/async-storage').default;
@@ -136,9 +133,6 @@ export const authAPI = {
         if (data.address !== undefined) payload.address = data.address;
         if (typeof data.avatar === 'string' && data.avatar) payload.avatar = data.avatar;
 
-        if (__DEV__) {
-          console.log('[updateProfile] Sending JSON payload');
-        }
 
         const response = await apiClient.put('/auth/profile', payload);
         return normalize(response.data);
@@ -146,13 +140,6 @@ export const authAPI = {
     } catch (error: any) {
       const status = error?.response?.status;
       const raw = error?.response?.data;
-      if (__DEV__) {
-        console.error('[updateProfile] Error:', {
-          status,
-          message: raw?.message || error.message,
-          data: raw
-        });
-      }
       let message = 'Cập nhật hồ sơ thất bại';
       if (typeof raw === 'string') {
         if (!raw.startsWith('<')) message = raw;
@@ -188,8 +175,7 @@ export const authAPI = {
       });
       return response.data;
     } catch (error) {
-      // Log error nhưng không throw để không làm crash logout process
-      console.warn('Logout API error:', error);
+      // Không throw để không làm crash logout process
       return { success: false, message: 'Logout API failed but local cleanup will continue' };
     }
   },
@@ -208,7 +194,7 @@ export const authAPI = {
 
   // Google login
   googleLogin: async (idToken: string) => {
-  console.log('Gửi idToken lên backend:', idToken);
+  
   const response = await apiClient.post('/auth/login/google', { idToken });
   return response.data;
   }

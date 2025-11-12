@@ -36,9 +36,9 @@ export default function VehicleDetailsScreen() {
       setLoading(true);
       const data = await vehiclesAPI.getVehicleById(vehicleId);
       setVehicle(data);
-      console.log('Vehicle details:', data);
+      
     } catch (error) {
-      console.error('Error loading vehicle details:', error);
+      
       Alert.alert('Lỗi', 'Không thể tải thông tin xe');
     } finally {
       setLoading(false);
@@ -346,6 +346,9 @@ export default function VehicleDetailsScreen() {
               return;
             }
 
+            // Get deposit percentage from backend (priority: colorOption -> vehicle -> default 50)
+            const depositPct = selectedColor?.deposit_percentage || vehicle.deposit_percentage || 50;
+
             router.push({
               pathname: '/booking',
               params: {
@@ -355,7 +358,7 @@ export default function VehicleDetailsScreen() {
                 stationId: stationInfo._id,
                 stationName: stationInfo.name,
                 pricePerDay: (selectedColor?.price_per_day || vehicle.price_per_day || 0).toString(),
-                depositPercentage: '50', // Always 50% for >= 3 days rental (backend business logic)
+                depositPercentage: depositPct.toString(), // Get from backend API
               }
             });
           }}

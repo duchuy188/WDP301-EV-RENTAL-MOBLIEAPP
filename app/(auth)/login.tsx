@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,6 @@ import { Link, router } from 'expo-router';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useAuthStore } from '@/store/authStore';
-import * as AuthSession from 'expo-auth-session';
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -25,20 +24,9 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const { login } = useAuthStore();
-  const { googleLogin } = useAuthStore();
-
-  // Replace these client IDs with your OAuth client IDs from Google Cloud Console.
-  // For Expo-managed apps, use the appropriate client id for web / iOS / Android.
-  const GOOGLE_EXPO_CLIENT_ID = process.env.GOOGLE_EXPO_CLIENT_ID || '<YOUR_EXPO_OAUTH_CLIENT_ID>'; // e.g. for expo web
-  const GOOGLE_IOS_CLIENT_ID = process.env.GOOGLE_IOS_CLIENT_ID || '<YOUR_IOS_CLIENT_ID>';
-  const GOOGLE_ANDROID_CLIENT_ID = process.env.GOOGLE_ANDROID_CLIENT_ID || '<YOUR_ANDROID_CLIENT_ID>';
-
-  // Configure the discovery document for Google
-  const discovery = AuthSession.useAutoDiscovery('https://accounts.google.com');
 
   const colors = {
     light: {
@@ -80,71 +68,6 @@ export default function LoginScreen() {
       setErrorMessage('Email hoặc mật khẩu không đúng');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  // Google Sign-in using OAuth2 (ID token flow)
-  const handleGoogleSignIn = async () => {
-    // Clear previous error
-    setErrorMessage('');
-    
-    try {
-      // build the request
-      const redirectUri = AuthSession.makeRedirectUri();
-
-      const clientId = GOOGLE_EXPO_CLIENT_ID;
-      if (!clientId || clientId.startsWith('<YOUR_')) {
-        setErrorMessage('Vui lòng cấu hình GOOGLE_EXPO_CLIENT_ID trong env');
-        return;
-      }
-
-      const scopes = ['openid', 'profile', 'email'];
-      if (!discovery) {
-        setErrorMessage('Không thể lấy thông tin discovery từ Google. Vui lòng thử lại sau.');
-        return;
-      }
-
-      const request = new AuthSession.AuthRequest({
-        clientId,
-        redirectUri,
-        scopes,
-        responseType: AuthSession.ResponseType.IdToken,
-        extraParams: {
-          nonce: Math.random().toString(36).substring(2, 15),
-          prompt: 'select_account',
-        },
-      });
-
-      await request.makeAuthUrlAsync(discovery);
-
-  const result = await request.promptAsync(discovery);
-
-      if (result.type === 'success') {
-        const idToken = (result as any).params?.id_token;
-        if (!idToken) {
-          setErrorMessage('Không nhận được idToken từ Google');
-          return;
-        }
-
-        // Send idToken to backend to create/find user and receive our app token
-        setIsGoogleLoading(true);
-        try {
-          await googleLogin(idToken);
-          router.replace('/(tabs)');
-        } catch (e) {
-          setErrorMessage('Đăng nhập bằng Google thất bại');
-        } finally {
-          setIsGoogleLoading(false);
-        }
-      } else if (result.type === 'dismiss' || result.type === 'cancel') {
-        // user cancelled
-      } else {
-        setErrorMessage('Kết quả OAuth không hợp lệ');
-      }
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.error('Google sign-in error', error);
-      setErrorMessage('Không thể đăng nhập với Google');
     }
   };
 
@@ -381,16 +304,6 @@ export default function LoginScreen() {
             <Text style={styles.loginText}>
               {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </Text>
-          </AnimatedTouchableOpacity>
-
-          {/* Google sign-in button */}
-          <AnimatedTouchableOpacity
-            style={[styles.loginButton, { backgroundColor: '#DB4437', marginBottom: 12 }]}
-            onPress={handleGoogleSignIn}
-            disabled={isGoogleLoading}
-            entering={FadeInDown.delay(350)}
-          >
-            <Text style={styles.loginText}>{isGoogleLoading ? 'Đang xử lý...' : 'Đăng nhập với Google'}</Text>
           </AnimatedTouchableOpacity>
 
           <View style={styles.registerContainer}>

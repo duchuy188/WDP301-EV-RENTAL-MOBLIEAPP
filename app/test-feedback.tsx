@@ -44,14 +44,14 @@ export default function TestFeedbackScreen() {
         comment: 'Test feedback'
       };
 
-      console.log('📤 Sending test payload:', payload);
+      
       const response = await feedbackAPI.createFeedback(payload);
-      console.log('✅ Response:', response);
+      
       
       setResult(`✅ JSON POST Success!\n${JSON.stringify(response, null, 2)}`);
       Alert.alert('Thành công', 'JSON POST hoạt động!');
     } catch (error: any) {
-      console.error('❌ Error:', error);
+      
       setResult(`❌ JSON POST Error:\n${error.message}\n${JSON.stringify(error, null, 2)}`);
       Alert.alert('Lỗi', error.message);
     } finally {
@@ -70,14 +70,14 @@ export default function TestFeedbackScreen() {
       formData.append('overall_rating', '4');
       formData.append('comment', 'Test with FormData');
 
-      console.log('📤 Sending FormData...');
+      
       const response = await feedbackAPI.createFeedback(formData);
-      console.log('✅ Response:', response);
+      
       
       setResult(`✅ FormData POST Success!\n${JSON.stringify(response, null, 2)}`);
       Alert.alert('Thành công', 'FormData POST hoạt động!');
     } catch (error: any) {
-      console.error('❌ Error:', error);
+      
       setResult(`❌ FormData POST Error:\n${error.message}\n${JSON.stringify(error, null, 2)}`);
       Alert.alert('Lỗi', error.message);
     } finally {

@@ -30,8 +30,7 @@ export default function VNPayPaymentScreen() {
   const handleNavigationStateChange = async (navState: any) => {
     const { url } = navState;
     
-    console.log('🌐 [VNPay WebView] URL:', url);
-    console.log('🔍 [VNPay WebView] Payment processed:', paymentProcessed);
+    
 
     // Check for booking-success redirect from backend (localhost URL can't be loaded)
     if (url.includes('/booking-success') && !paymentProcessed) {
@@ -44,7 +43,7 @@ export default function VNPayPaymentScreen() {
         const bookingCode = urlObj.searchParams.get('code');
         const holdingFeePaid = urlObj.searchParams.get('holdingFeePaid');
         
-        console.log('Booking Success - Code:', bookingCode, 'Paid:', holdingFeePaid);
+        
         
         setTimeout(() => {
           Alert.alert(
@@ -61,7 +60,7 @@ export default function VNPayPaymentScreen() {
           );
         }, 300);
       } catch (error) {
-        console.error('Error parsing booking-success URL:', error);
+        
       }
       return;
     }
@@ -78,8 +77,7 @@ export default function VNPayPaymentScreen() {
         const vnpResponseCode = urlObj.searchParams.get('vnp_ResponseCode');
         const vnpTransactionStatus = urlObj.searchParams.get('vnp_TransactionStatus');
         
-        console.log('Payment Response Code:', vnpResponseCode);
-        console.log('Transaction Status:', vnpTransactionStatus);
+        
         
         // VNPay Response Codes:
         // 00: Success
@@ -132,7 +130,7 @@ export default function VNPayPaymentScreen() {
           );
         }
       } catch (error: any) {
-        console.error('Payment verification error:', error);
+        
         Alert.alert(
           'Lỗi xác thực',
           'Không thể xác thực kết quả thanh toán. Vui lòng kiểm tra lại đơn đặt xe của bạn.',
@@ -152,17 +150,11 @@ export default function VNPayPaymentScreen() {
   const handleError = (syntheticEvent: any) => {
     const { nativeEvent } = syntheticEvent;
     
-    console.log('❌ [VNPay WebView] Error occurred:', {
-      url: nativeEvent.url,
-      code: nativeEvent.code,
-      description: nativeEvent.description,
-      paymentProcessed,
-      isVerifying
-    });
+    
     
     // Don't show error if payment has been processed (ERR_INVALID_REDIRECT is expected after successful payment)
     if (paymentProcessed || isVerifying) {
-      console.log('✅ [VNPay] Ignoring WebView error - payment already processed');
+      
       return;
     }
     
@@ -174,11 +166,11 @@ export default function VNPayPaymentScreen() {
       nativeEvent.url.includes('localhost') ||
       nativeEvent.url.includes('192.168.102.8')
     )) {
-      console.log('✅ [VNPay] Ignoring WebView error on callback URL - this is expected');
+      
       
       // Try to extract payment result from URL even on error
       if (nativeEvent.url.includes('vnp_ResponseCode') && !paymentProcessed) {
-        console.log('🔍 [VNPay] Attempting to extract payment result from error URL');
+        
         setIsVerifying(true);
         setPaymentProcessed(true);
         
@@ -187,8 +179,7 @@ export default function VNPayPaymentScreen() {
           const vnpResponseCode = urlObj.searchParams.get('vnp_ResponseCode');
           const vnpTransactionStatus = urlObj.searchParams.get('vnp_TransactionStatus');
           
-          console.log('💳 [VNPay] Payment Response Code:', vnpResponseCode);
-          console.log('💳 [VNPay] Transaction Status:', vnpTransactionStatus);
+          
           
           if (vnpResponseCode === '00' || vnpTransactionStatus === '00') {
             setTimeout(() => {
@@ -235,7 +226,7 @@ export default function VNPayPaymentScreen() {
             );
           }
         } catch (error) {
-          console.error('❌ [VNPay] Error parsing payment result from error URL:', error);
+          
         } finally {
           setIsVerifying(false);
         }
@@ -245,7 +236,7 @@ export default function VNPayPaymentScreen() {
     }
     
     // Only log actual errors that need attention
-    console.error('WebView error:', nativeEvent);
+    
     
     Alert.alert(
       'Lỗi tải trang',
@@ -284,10 +275,7 @@ export default function VNPayPaymentScreen() {
                       
                       // Cancel pending booking if it's a temp booking (has PB prefix)
                       if (bookingId && bookingId.startsWith('PB')) {
-                        console.log('🚫 Cancelling pending booking:', bookingId);
-                        const cancelResponse = await bookingAPI.cancelPendingBooking(bookingId);
-                        console.log('✅ Cancel API Response:', cancelResponse);
-                        console.log('✅ Pending booking cancelled successfully - Vehicle unreserved');
+                        await bookingAPI.cancelPendingBooking(bookingId);
                         
                         // Navigate back and let useFocusEffect refresh the list
                         router.replace('/(tabs)/history');
@@ -303,7 +291,7 @@ export default function VNPayPaymentScreen() {
                         router.replace('/(tabs)/history');
                       }
                     } catch (error: any) {
-                      console.error('❌ Error cancelling booking:', error);
+                      
                       Alert.alert(
                         'Lỗi',
                         'Không thể hủy đặt xe. Vui lòng thử lại.',

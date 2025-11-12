@@ -57,23 +57,23 @@ export default function VerifyGPLXScreen() {
 
   const loadExistingData = async () => {
     try {
-      console.log('🔄 Bắt đầu load dữ liệu GPLX...');
+      
       
       // Lấy thông tin từ getDriverLicense
       const response = await kycAPI.getDriverLicense();
-      console.log('📸 Response từ getDriverLicense:', JSON.stringify(response, null, 2));
+      
       
       if (response && (response as any).data?.driverLicense) {
         const licenseData = (response as any).data.driverLicense;
-        console.log('📋 License data:', licenseData);
+        
         
         // Set ảnh
         if (licenseData.frontImage) {
-          console.log('🖼️ Setting front image:', licenseData.frontImage);
+          
           setFrontImage(licenseData.frontImage);
         }
         if (licenseData.backImage) {
-          console.log('🖼️ Setting back image:', licenseData.backImage);
+          
           setBackImage(licenseData.backImage);
         }
         
@@ -111,9 +111,9 @@ export default function VerifyGPLXScreen() {
           setExpiryText(licenseData.expiryText);
         }
         
-        console.log('✅ Đã load GPLX - Name:', licenseData.name, 'Images:', !!licenseData.frontImage, !!licenseData.backImage);
+        
       } else {
-        console.log('⚠️ Không có dữ liệu driverLicense trong response');
+        
       }
       
       // Lấy status từ API status
@@ -121,12 +121,12 @@ export default function VerifyGPLXScreen() {
         const statusResponse: any = await kycAPI.getKYCStatus();
         setKycStatus(statusResponse.status || statusResponse.kycStatus || 'not_submitted');
       } catch (statusError) {
-        console.log('⚠️ Lỗi khi lấy status:', statusError);
+        
       }
     } catch (error: any) {
-      console.log('❌ LỖI khi load GPLX:', error);
-      console.log('❌ Error message:', error.message);
-      console.log('❌ Error response:', error.response?.data);
+      
+      
+      
     }
   };
 
@@ -142,11 +142,11 @@ export default function VerifyGPLXScreen() {
         type: fileType,
       };
 
-      console.log(`🚗 Đang xử lý ảnh GPLX ${side}...`);
+      
 
       if (side === 'front') {
         const response = await kycAPI.uploadLicenseFront(imageFile);
-        console.log('✅ OCR GPLX mặt trước:', response);
+        
         
         setFrontImage(imageUri);
         
@@ -164,13 +164,13 @@ export default function VerifyGPLXScreen() {
         Alert.alert('Thành công', 'Đã lưu ảnh mặt trước GPLX');
       } else {
         const response = await kycAPI.uploadLicenseBack(imageFile);
-        console.log('✅ OCR GPLX mặt sau:', response);
+        
         
         setBackImage(imageUri);
         Alert.alert('Thành công', 'Đã lưu ảnh mặt sau GPLX');
       }
     } catch (error: any) {
-      console.error('❌ Lỗi khi xử lý ảnh GPLX:', error);
+      
       if (error.message?.includes('Network Error')) {
         Alert.alert('Không thể kết nối', 'Vui lòng chụp lại');
       } else {
@@ -294,9 +294,9 @@ export default function VerifyGPLXScreen() {
       };
 
       // Call API to upload front image
-      console.log('📤 Uploading GPLX front image...');
+      
       const frontResponse = await kycAPI.uploadLicenseFront(frontImageFile);
-      console.log('✅ GPLX front image uploaded:', frontResponse);
+      
 
       // Auto-fill form with OCR data from response if available
       if (frontResponse.license?.id) {
@@ -310,17 +310,17 @@ export default function VerifyGPLXScreen() {
       }
 
       // Call API to upload back image
-      console.log('📤 Uploading GPLX back image...');
+      
       const backResponse = await kycAPI.uploadLicenseBack(backImageFile);
-      console.log('✅ GPLX back image uploaded:', backResponse);
+      
 
       // Get KYC status after upload
       try {
         const statusResponse = await kycAPI.getKYCStatus();
-        console.log('📋 KYC Status:', statusResponse);
+        
         setKycStatus(statusResponse.kycStatus || 'pending');
       } catch (statusError) {
-        console.log('⚠️ Không lấy được status:', statusError);
+        
       }
 
       // Show success message
@@ -335,7 +335,7 @@ export default function VerifyGPLXScreen() {
         ]
       );
     } catch (error: any) {
-      console.log('❌ Lỗi khi upload GPLX:', error);
+      
       
       if (error.message === 'Network Error' || error.message?.includes('Network')) {
         Alert.alert(

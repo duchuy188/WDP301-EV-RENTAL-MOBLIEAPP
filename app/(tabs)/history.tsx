@@ -41,6 +41,7 @@ export default function HistoryScreen() {
   
   // Store countdown timers for each pending booking
   const [countdownTimers, setCountdownTimers] = useState<{[key: string]: number}>({});
+  const [forceRender, setForceRender] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   
   // Modal state for pending booking details
@@ -70,9 +71,11 @@ export default function HistoryScreen() {
           const now = Date.now();
           const secondsLeft = Math.max(0, Math.floor((expiresAt - now) / 1000));
           initialTimers[bookingId] = secondsLeft;
+          console.log(`[TIMER INIT] ${bookingId}: ${secondsLeft}s`);
         }
       });
       setCountdownTimers(initialTimers);
+      console.log('[TIMER INIT] Total timers:', Object.keys(initialTimers).length);
     } else {
       setCountdownTimers({});
     }
@@ -80,22 +83,24 @@ export default function HistoryScreen() {
 
   // Countdown timer - update every second
   useEffect(() => {
+    console.log('[TIMER EFFECT] Running, pending bookings:', pendingBookings.length);
+    
     // Clear existing timer
     if (timerRef.current) {
       clearInterval(timerRef.current);
     }
 
-    if (Object.keys(countdownTimers).length > 0) {
+    // Only start timer if we have pending bookings
+    if (pendingBookings.length > 0) {
+      console.log('[TIMER] Starting new interval');
       timerRef.current = setInterval(() => {
         setCountdownTimers(prev => {
           const updated = {...prev};
-          let hasChanges = false;
           const expiredIds: string[] = [];
           
           Object.keys(updated).forEach(key => {
             if (updated[key] > 0) {
               updated[key] -= 1;
-              hasChanges = true;
               
               // Check if just expired (reached 0)
               if (updated[key] === 0) {
@@ -106,8 +111,8 @@ export default function HistoryScreen() {
           
           // Remove expired bookings from the list
           if (expiredIds.length > 0) {
-            console.log('⏰ Booking(s) expired, removing from list:', expiredIds);
-            setPendingBookings(current => 
+            console.log('[TIMER] Expired bookings:', expiredIds);
+            setPendingBookings(current =>
               current.filter(booking => {
                 const id = booking._id || booking.temp_id;
                 return !expiredIds.includes(id);
@@ -127,17 +132,22 @@ export default function HistoryScreen() {
             });
           }
           
-          return hasChanges ? updated : prev;
+          // Always return new object to force re-render every second
+          return {...updated};
         });
+        
+        // Force component re-render
+        setForceRender(n => n + 1);
       }, 1000);
     }
 
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
+        console.log('[TIMER] Cleanup - stopped timer');
       }
     };
-  }, [pendingBookings]);
+  }, [pendingBookings.length]);
 
   const loadBookingsAndStats = async () => {
     try {
@@ -184,15 +194,8 @@ export default function HistoryScreen() {
       setCurrentPage(1);
       setHasMore(allBookings.length > 10);
       
-      console.log('📊 Initial load complete:', {
-        totalBookings: allBookings.length,
-        totalPages: Math.ceil(allBookings.length / 10),
-        totalCompleted,
-        totalSpent,
-        displayedBookings: Math.min(10, allBookings.length)
-      });
     } catch (error) {
-      console.error('Error loading bookings and stats:', error);
+      
     } finally {
       setLoading(false);
     }
@@ -201,39 +204,35 @@ export default function HistoryScreen() {
   const loadPendingBookings = async () => {
     try {
       setLoadingPending(true);
-      console.log('🔄 Loading pending bookings from API...');
+      
       
       // Try to call the API endpoint
       const response = await bookingAPI.getMyPendingBookings();
-      console.log('📋 API Response:', response);
+      
       
       // Handle response structure: pending_bookings array
       const allPending = response.pending_bookings || response.bookings || [];
       
       // Filter out cancelled bookings
       const pending = allPending.filter((b: any) => b.status !== 'cancelled');
-      console.log('📋 Total from API:', allPending.length);
-      console.log('📋 After filtering cancelled:', pending.length);
+      
+      
       
       if (pending.length > 0) {
-        console.log('📋 First pending booking:', pending[0]);
+        
       }
       
       setPendingBookings(pending);
     } catch (error: any) {
-      console.error('❌ Error loading pending bookings:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data
-      });
+      
+      
       
       // Fallback: filter from loaded bookings
-      console.log('⚠️ Fallback: filtering from loaded bookings');
+      
       const pending = allLoadedBookings.filter(b => 
         b.status === 'pending' || b.status === 'pending_payment'
       );
-      console.log('📋 Fallback found:', pending.length);
+      
       setPendingBookings(pending);
     } finally {
       setLoadingPending(false);
@@ -241,7 +240,7 @@ export default function HistoryScreen() {
   };
 
   const loadBookings = async (page: number = 1) => {
-    console.log('📖 Changing to page:', page);
+    
     
     // Calculate which bookings to show for this page
     const startIdx = (page - 1) * 10;
@@ -252,11 +251,7 @@ export default function HistoryScreen() {
     setCurrentPage(page);
     setHasMore(endIdx < allLoadedBookings.length);
     
-    console.log('📄 Page changed:', {
-      page,
-      showing: pageBookings.length,
-      total: allLoadedBookings.length
-    });
+    
   };
 
   const handleRefresh = async () => {
@@ -281,7 +276,7 @@ export default function HistoryScreen() {
               
               // Cancel pending booking
               await bookingAPI.cancelPendingBooking(tempId);
-              console.log('✅ Cancelled pending booking:', tempId);
+              
               
               setShowPendingModal(false);
               setSelectedPendingBooking(null);
@@ -297,7 +292,7 @@ export default function HistoryScreen() {
               
               Alert.alert('Thành công', 'Đã hủy đặt xe thành công');
             } catch (error: any) {
-              console.error('❌ Error cancelling booking:', error);
+              
               Alert.alert('Lỗi', error.response?.data?.message || 'Không thể hủy đặt xe');
             } finally {
               setCancellingBooking(false);
@@ -322,7 +317,7 @@ export default function HistoryScreen() {
         }
       });
     } catch (error) {
-      console.error('Error navigating to payment:', error);
+      
       Alert.alert('Lỗi', 'Không thể mở trang thanh toán');
     }
   };
@@ -350,6 +345,22 @@ export default function HistoryScreen() {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    
+    // If dateString contains space, it might be "DD/MM/YYYY HH:mm:ss" format
+    // Extract only the date part
+    const datePart = dateString.includes(' ') ? dateString.split(' ')[0] : dateString;
+    
+    // Check if it's already in DD/MM/YYYY format (Vietnamese format)
+    if (datePart.includes('/')) {
+      const parts = datePart.split('/');
+      if (parts.length === 3) {
+        // Already in DD/MM/YYYY format, return as is
+        return datePart;
+      }
+    }
+    
+    // Otherwise, try to parse as ISO date
     return new Date(dateString).toLocaleDateString('vi-VN');
   };
 
@@ -767,15 +778,15 @@ export default function HistoryScreen() {
               const isUrgent = secondsLeft > 0 && secondsLeft <= 300; // Less than 5 minutes
               
               return (
-                <TouchableOpacity
-                  key={bookingId || index}
-                  style={styles.tripCard}
-                  onPress={() => {
-                    setSelectedPendingBooking(booking);
-                    setShowPendingModal(true);
-                  }}
-                  activeOpacity={0.7}
-                >
+              <TouchableOpacity
+                key={`${bookingId || index}-${countdownTimers[bookingId] || 0}`}
+                style={styles.tripCard}
+                onPress={() => {
+                  setSelectedPendingBooking(booking);
+                  setShowPendingModal(true);
+                }}
+                activeOpacity={0.7}
+              >
                   <View style={styles.tripHeader}>
                     <Text style={styles.tripVehicle}>
                       {vehicle?.brand} {vehicle?.model}
@@ -865,7 +876,7 @@ export default function HistoryScreen() {
                 <View style={styles.tripInfo}>
                   <Calendar size={14} color={colors.textSecondary} />
                   <Text style={styles.tripInfoText}>
-                    {booking.start_date} • {booking.pickup_time}
+                    {formatDate(booking.start_date)} • {booking.pickup_time}
                   </Text>
                 </View>
                 

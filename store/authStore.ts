@@ -217,7 +217,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       }
     } catch (error) {
-      console.error('Error checking auth state:', error);
+      
     }
   },
 }));

@@ -47,7 +47,7 @@ export default function AnalyticsScreen() {
   // Auto-refresh when tab is focused
   useFocusEffect(
     React.useCallback(() => {
-      console.log('📱 Analytics tab focused, loading stats...');
+      
       loadStats();
     }, [])
   );
@@ -56,31 +56,30 @@ export default function AnalyticsScreen() {
     try {
       setLoading(true);
       setError(null);
-      console.log('🔄 Loading personal analytics...');
-      console.log('🔗 API Endpoint: /users/personal-analytics');
+      
+      
       
       const response = await personalAPI.getPersonal();
-      console.log('✅ Personal analytics response:', JSON.stringify(response, null, 2));
       
       if (response && response.data) {
         setStatsData(response.data);
-        console.log('✅ Stats data loaded successfully!');
-        console.log('📊 Overview:', response.data.overview);
+        
+        
       } else {
-        console.log('⚠️ No data in response');
+        
         setError('Không có dữ liệu thống kê');
       }
     } catch (error: any) {
-      console.error('❌ Error loading personal analytics:', error);
+      
       if (error.response) {
-        console.error('❌ Response status:', error.response.status);
-        console.error('❌ Response data:', error.response.data);
+        
+        
         setError(error.response.data?.message || `Lỗi ${error.response.status}: ${error.response.statusText}`);
       } else if (error.request) {
-        console.error('❌ No response received:', error.request);
+        
         setError('Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.');
       } else {
-        console.error('❌ Error message:', error.message);
+        
         setError(error.message || 'Đã xảy ra lỗi không xác định');
       }
     } finally {

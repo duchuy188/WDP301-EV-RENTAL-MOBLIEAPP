@@ -58,26 +58,26 @@ export default function VerifyCCCDScreen() {
 
   const loadExistingData = async () => {
     try {
-      console.log('🔄 Bắt đầu load dữ liệu CCCD...');
+      
       
       // Gọi API lấy thông tin CCCD chi tiết
       const response: any = await kycAPI.getIdentityCard();
-      console.log('📸 Response từ API:', JSON.stringify(response, null, 2));
+      
       
       // Check nếu response có data wrapper
       const data = response.data || response;
       const card = data.identityCard || data;
       
-      console.log('📋 Identity Card data:', card);
+      
       
       if (card) {
         // Ảnh
         if (card.frontImage) {
-          console.log('🖼️ Setting front image:', card.frontImage);
+          
           setFrontImage(card.frontImage);
         }
         if (card.backImage) {
-          console.log('🖼️ Setting back image:', card.backImage);
+          
           setBackImage(card.backImage);
         }
         
@@ -96,9 +96,9 @@ export default function VerifyCCCDScreen() {
         if (card.features) setFeatures(card.features);
         if (card.doe) setDoe(card.doe);
         
-        console.log('✅ Đã load CCCD - Name:', card.name, 'Images:', !!card.frontImage, !!card.backImage);
+        
       } else {
-        console.log('⚠️ Không tìm thấy dữ liệu identityCard trong response');
+        
       }
       
       // Lấy status từ API status
@@ -106,12 +106,12 @@ export default function VerifyCCCDScreen() {
         const statusResponse: any = await kycAPI.getKYCStatus();
         setKycStatus(statusResponse.status || statusResponse.kycStatus || 'not_submitted');
       } catch (statusError) {
-        console.log('⚠️ Lỗi khi lấy status:', statusError);
+        
       }
     } catch (error: any) {
-      console.log('❌ LỖI khi load CCCD:', error);
-      console.log('❌ Error message:', error.message);
-      console.log('❌ Error response:', error.response?.data);
+      
+      
+      
     }
   };
 
@@ -138,25 +138,25 @@ export default function VerifyCCCDScreen() {
         }
         
         setFrontImage(imageUri);
-        console.log('✅ OCR thành công, đã tự động điền thông tin');
+        
       } else {
         const response = await kycAPI.uploadIdentityCardBack(imageFile);
         setBackImage(imageUri);
-        console.log('✅ Đã xử lý ảnh mặt sau CCCD');
+        
         
         // Gọi API để lấy trạng thái KYC sau khi upload cả 2 mặt
         try {
           const statusResponse = await kycAPI.getKYCStatus();
-          console.log('📋 KYC Status:', statusResponse);
+          
           if (statusResponse.identity) {
             setKycStatus(statusResponse.kycStatus || 'pending');
           }
         } catch (statusError) {
-          console.log('⚠️ Không lấy được status:', statusError);
+          
         }
       }
     } catch (error: any) {
-      console.log('OCR Error:', error);
+      
       
       // Check if it's a network error (backend not available)
       if (error.message === 'Network Error' || error.message?.includes('Network')) {
@@ -285,14 +285,14 @@ export default function VerifyCCCDScreen() {
       };
 
       // Call API to upload front image
-      console.log('📤 Uploading front image...');
+      
       const frontResponse = await kycAPI.uploadIdentityCardFront(frontImageFile);
-      console.log('✅ Front image uploaded:', frontResponse);
+      
 
       // Call API to upload back image
-      console.log('📤 Uploading back image...');
+      
       const backResponse = await kycAPI.uploadIdentityCardBack(backImageFile);
-      console.log('✅ Back image uploaded:', backResponse);
+      
 
       // Auto-fill form with OCR data from response if available
       if (frontResponse.identityCard) {
@@ -305,10 +305,10 @@ export default function VerifyCCCDScreen() {
       // Get KYC status after upload
       try {
         const statusResponse = await kycAPI.getKYCStatus();
-        console.log('📋 KYC Status:', statusResponse);
+        
         setKycStatus(statusResponse.kycStatus || 'pending');
       } catch (statusError) {
-        console.log('⚠️ Không lấy được status:', statusError);
+        
       }
 
       // Show success message
@@ -323,7 +323,7 @@ export default function VerifyCCCDScreen() {
         ]
       );
     } catch (error: any) {
-      console.log('❌ Lỗi khi upload CCCD:', error);
+      
       
       if (error.message === 'Network Error' || error.message?.includes('Network')) {
         Alert.alert(

@@ -63,13 +63,10 @@ export default function ForgotPasswordScreen() {
     try {
       const response = await authAPI.forgotPassword({ email });
       
-      if (__DEV__) {
-        console.log('✅ Forgot password response:', response);
-      }
       
       setIsEmailSent(true);
     } catch (error: any) {
-      console.error('❌ Forgot password error:', error);
+      
       
       const errorMessage = error?.response?.data?.message 
         || error?.message 

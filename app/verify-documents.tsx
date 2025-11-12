@@ -30,7 +30,7 @@ export default function VerifyDocumentsScreen() {
   const loadKYCStatus = async () => {
     try {
       const response = await kycAPI.getKYCStatus();
-      console.log('📋 KYC Status loaded:', response);
+      
       
       // Cập nhật trạng thái CCCD
       if (response.identity && response.identity.frontUploaded && response.identity.backUploaded) {
@@ -46,7 +46,7 @@ export default function VerifyDocumentsScreen() {
         setLicenseStatus('uploading');
       }
     } catch (error) {
-      console.log('⚠️ Không load được KYC status:', error);
+      
     } finally {
       setIsLoading(false);
     }

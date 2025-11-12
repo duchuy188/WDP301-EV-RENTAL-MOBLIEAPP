@@ -18,13 +18,6 @@ const postFile = async <T>(endpoint: string, imageFile: ImageFile): Promise<T> =
     type: imageFile.type,
   } as any);
   
-  if (__DEV__) {
-    console.log(`📤 Uploading image to ${endpoint}:`, {
-      uri: imageFile.uri,
-      name: imageFile.name,
-      type: imageFile.type,
-    });
-  }
   
   try {
     const resp = await axiosInstance.post<T>(endpoint, form, {
@@ -33,19 +26,9 @@ const postFile = async <T>(endpoint: string, imageFile: ImageFile): Promise<T> =
       },
     });
     
-    if (__DEV__) {
-      console.log(`✅ Upload to ${endpoint} succeeded:`, resp.data);
-    }
     
     return resp.data;
   } catch (err: any) {
-    if (__DEV__) {
-      console.error(`❌ Upload to ${endpoint} failed:`, {
-        status: err?.response?.status,
-        message: err?.response?.data?.message || err.message,
-        data: err?.response?.data,
-      });
-    }
     throw new Error(err?.response?.data?.message || err.message || 'Upload failed');
   }
 };

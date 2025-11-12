@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Modal,
   TextInput,
 } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -104,6 +104,7 @@ export default function BookingDetailsScreen() {
 
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [canCancel, setCanCancel] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
   const [loading, setLoading] = useState(true);
   const [canceling, setCanceling] = useState(false);
   const [contractId, setContractId] = useState<string | null>(null);
@@ -113,9 +114,12 @@ export default function BookingDetailsScreen() {
   const [cancelReason, setCancelReason] = useState('');
   const [expandedNotes, setExpandedNotes] = useState(false);
 
-  useEffect(() => {
-    loadBookingDetails();
-  }, [bookingId]);
+  // Auto-refresh when screen is focused (e.g., after editing booking)
+  useFocusEffect(
+    useCallback(() => {
+      loadBookingDetails();
+    }, [bookingId])
+  );
 
   const loadBookingDetails = async () => {
     try {
@@ -123,11 +127,17 @@ export default function BookingDetailsScreen() {
       const response = await bookingAPI.getBooking(bookingId);
       setBooking(response.booking);
       setCanCancel(response.canCancel || false);
-      console.log('Booking details:', response);
-      console.log('Booking payments:', response.booking.payments);
-      console.log('Booking total_price:', response.booking.total_price);
-      console.log('Contract ID from booking:', response.booking.contract_id);
-      console.log('Booking status:', response.booking.status);
+      
+      // Check if can edit
+      const editAllowed = checkCanEditBooking(response.booking);
+      setCanEdit(editAllowed);
+      
+      
+      
+      
+      
+      
+      
       
       // If booking has contract_id, use it
       if (response.booking.contract_id) {
@@ -140,7 +150,7 @@ export default function BookingDetailsScreen() {
       // Try to find rental for this booking
       loadRentalByBooking(response.booking);
     } catch (error) {
-      console.error('Error loading booking details:', error);
+      
       Alert.alert('Lỗi', 'Không thể tải thông tin đặt xe');
       router.back();
     } finally {
@@ -152,7 +162,7 @@ export default function BookingDetailsScreen() {
     try {
       // Get all rentals and find by booking_id
       const response = await rentalAPI.getRentals();
-      console.log('🔍 Searching rental for booking:', bookingData.code);
+      
       
       if (response.rentals && response.rentals.length > 0) {
         const bookingIdToFind = bookingData._id;
@@ -166,13 +176,13 @@ export default function BookingDetailsScreen() {
         
         if (matchingRental) {
           setRentalId(matchingRental._id);
-          console.log('✅ Found rental:', matchingRental._id, matchingRental.code);
+          
         } else {
-          console.log('❌ No rental found for this booking');
+          
         }
       }
     } catch (error) {
-      console.error('❌ Error loading rental:', error);
+      
     }
   };
 
@@ -182,18 +192,18 @@ export default function BookingDetailsScreen() {
       
       // Get all contracts and find by customer + vehicle + station
       const response = await contractAPI.getContracts({ limit: 100 });
-      console.log('🔍 Searching contract for booking:', bookingData.code);
-      console.log('Total contracts:', response.data?.contracts?.length || 0);
+      
+      
       
       if (response.data?.contracts && response.data.contracts.length > 0) {
         const userId = bookingData.user_id?._id || bookingData.user_id;
         const vehicleId = bookingData.vehicle_id?._id || bookingData.vehicle_id;
         const stationId = bookingData.station_id?._id || bookingData.station_id;
         
-        console.log('🔎 Looking for contract with:');
-        console.log('  - Customer ID:', userId);
-        console.log('  - Vehicle ID:', vehicleId);
-        console.log('  - Station ID:', stationId);
+        
+        
+        
+        
         
         // Find contract matching customer, vehicle, and station
         const matchingContract = response.data.contracts.find(
@@ -202,14 +212,7 @@ export default function BookingDetailsScreen() {
             const matchVehicle = contract.vehicle?._id === vehicleId;
             const matchStation = contract.station?._id === stationId;
             
-            console.log(`Checking contract ${contract.code}:`, {
-              matchCustomer,
-              matchVehicle,
-              matchStation,
-              contractCustomer: contract.customer?._id,
-              contractVehicle: contract.vehicle?._id,
-              contractStation: contract.station?._id,
-            });
+            
             
             return matchCustomer && matchVehicle && matchStation;
           }
@@ -217,24 +220,124 @@ export default function BookingDetailsScreen() {
         
         if (matchingContract) {
           setContractId(matchingContract._id);
-          console.log('✅ Found contract!');
-          console.log('  - Contract ID:', matchingContract._id);
-          console.log('  - Contract Code:', matchingContract.code);
-          console.log('  - Status:', matchingContract.status);
+          
+          
+          
+          
         } else {
-          console.log('❌ No matching contract found');
+          
         }
       }
     } catch (error) {
-      console.error('❌ Error loading contract:', error);
+      
     } finally {
       setLoadingContract(false);
     }
   };
 
+  // Check if booking can be edited
+  const checkCanEditBooking = (bookingData: any): boolean => {
+    // 1. Must be online booking
+    if (bookingData.booking_type !== 'online') {
+      
+      return false;
+    }
+
+    // 2. Must have paid holding fee
+    const holdingFee = bookingData.holding_fee;
+    if (!holdingFee || holdingFee.status !== 'paid') {
+      
+      return false;
+    }
+
+    // 3. Must be in pending status
+    if (bookingData.status !== 'pending') {
+      
+      return false;
+    }
+
+    // 4. Edit count must be less than 1
+    const editCount = bookingData.edit_count || 0;
+    if (editCount >= 1) {
+      
+      return false;
+    }
+
+    // 5. Must be at least 24 hours before pickup
+    const now = new Date();
+    
+    // Parse start_date properly from "DD/MM/YYYY HH:mm:ss" format
+    let pickupDate: Date;
+    if (bookingData.start_date && typeof bookingData.start_date === 'string') {
+      const dateStr = bookingData.start_date;
+      
+      // Check if it's in "DD/MM/YYYY HH:mm:ss" format
+      if (dateStr.includes('/')) {
+        const [datePart, timePart] = dateStr.split(' ');
+        const [day, month, year] = datePart.split('/').map(Number);
+        pickupDate = new Date(year, month - 1, day); // month is 0-indexed
+        
+        // Set time from pickup_time if available, otherwise from date string
+        if (bookingData.pickup_time) {
+          const [hours, minutes] = bookingData.pickup_time.split(':').map(Number);
+          pickupDate.setHours(hours, minutes, 0, 0);
+        } else if (timePart) {
+          const [hours, minutes] = timePart.split(':').map(Number);
+          pickupDate.setHours(hours, minutes, 0, 0);
+        }
+      } else {
+        // Fallback to regular Date parsing
+        pickupDate = new Date(bookingData.start_date);
+        if (bookingData.pickup_time) {
+          const [hours, minutes] = bookingData.pickup_time.split(':').map(Number);
+          pickupDate.setHours(hours, minutes, 0, 0);
+        }
+      }
+    } else {
+      pickupDate = new Date(bookingData.start_date);
+      if (bookingData.pickup_time) {
+        const [hours, minutes] = bookingData.pickup_time.split(':').map(Number);
+        pickupDate.setHours(hours, minutes, 0, 0);
+      }
+    }
+
+    const hoursDiff = (pickupDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    
+    console.log('[EDIT CHECK]', {
+      now: now.toISOString(),
+      pickupDate: pickupDate.toISOString(),
+      hoursDiff: hoursDiff.toFixed(2),
+      canEdit: hoursDiff >= 24
+    });
+    
+    if (hoursDiff < 24) {
+      
+      return false;
+    }
+
+    
+    return true;
+  };
+
+  const handleEditBooking = () => {
+    if (!booking) return;
+
+    router.push({
+      pathname: '/edit-booking',
+      params: { id: booking._id }
+    });
+  };
+
   const handleCancelBooking = () => {
     setCancelReason('');
     setShowCancelModal(true);
+  };
+
+  // Format date from "DD/MM/YYYY HH:mm:ss" to "DD/MM/YYYY"
+  const formatDateOnly = (dateStr: string): string => {
+    if (!dateStr) return '';
+    // Split by space and take only the date part
+    return dateStr.split(' ')[0];
   };
 
   const confirmCancelBooking = async () => {
@@ -251,7 +354,7 @@ export default function BookingDetailsScreen() {
         { text: 'OK', onPress: () => router.push('/(tabs)/history') },
       ]);
     } catch (error: any) {
-      console.error('Error canceling booking:', error);
+      
       Alert.alert('Lỗi', error.response?.data?.message || 'Không thể hủy đặt xe');
     } finally {
       setCanceling(false);
@@ -322,18 +425,18 @@ export default function BookingDetailsScreen() {
     // Ưu tiên tính từ payments nếu có
     if (booking.payments && booking.payments.length > 0) {
       const total = booking.payments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
-      console.log('💰 Total from payments:', total);
+      
       return total;
     }
     
     // Nếu không có payments, thử tính từ các phí
     if (booking.total_price > 0 || booking.deposit_amount > 0 || booking.late_fee > 0 || booking.damage_fee > 0) {
       const total = (booking.total_price || 0) + (booking.late_fee || 0) + (booking.damage_fee || 0) + (booking.other_fees || 0);
-      console.log('💰 Total from fees:', total);
+      
       return total;
     }
     
-    console.log('💰 No price data available');
+    
     return 0;
   };
 
@@ -345,8 +448,8 @@ export default function BookingDetailsScreen() {
       return booking.deposit_amount;
     }
     
-    // Nếu thuê > 3 ngày, tính 50% tổng giá
-    if (booking.total_days > 3) {
+    // Nếu thuê >= 3 ngày, tính 50% tổng giá
+    if (booking.total_days >= 3) {
       return booking.total_price * 0.5;
     }
     
@@ -422,9 +525,6 @@ export default function BookingDetailsScreen() {
                   backgroundColor="#fff"
                 />
                 <Text style={styles.qrCode}>{booking.qr_code}</Text>
-                {booking.qr_expires_at && (
-                  <Text style={styles.qrExpiry}>Hết hạn: {booking.qr_expires_at}</Text>
-                )}
               </View>
             </View>
           )}
@@ -493,7 +593,7 @@ export default function BookingDetailsScreen() {
                 <View style={{ marginLeft: 12, flex: 1 }}>
                   <Text style={styles.timeLabel}>Ngày nhận xe</Text>
                   <Text style={styles.timeValue}>
-                    {booking.start_date} • {booking.pickup_time}
+                    {formatDateOnly(booking.start_date)} • {booking.pickup_time}
                   </Text>
                 </View>
               </View>
@@ -503,7 +603,7 @@ export default function BookingDetailsScreen() {
                 <View style={{ marginLeft: 12, flex: 1 }}>
                   <Text style={styles.timeLabel}>Ngày trả xe</Text>
                   <Text style={styles.timeValue}>
-                    {booking.end_date} • {booking.return_time}
+                    {formatDateOnly(booking.end_date)} • {booking.return_time}
                   </Text>
                 </View>
               </View>
@@ -619,6 +719,31 @@ export default function BookingDetailsScreen() {
                   <Text style={styles.contractButtonText}>Xem Chi tiết thuê xe</Text>
                 </TouchableOpacity>
               </View>
+              
+              {/* Rebook Button for Completed Bookings */}
+              {booking.status === 'completed' && (
+                <TouchableOpacity
+                  style={[styles.rebookButton, { backgroundColor: colors.primary }]}
+                  onPress={() => {
+                    router.push({
+                      pathname: '/booking',
+                      params: {
+                        brand: booking.vehicle_id.brand,
+                        model: booking.vehicle_id.model,
+                        color: booking.vehicle_id.color,
+                        stationId: booking.station_id._id,
+                        stationName: booking.station_id.name,
+                        pricePerDay: booking.price_per_day.toString(),
+                        depositPercentage: '50', // Always 50% for >= 3 days rental
+                      }
+                    });
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <FontAwesome5 name="redo" size={18} color="#fff" />
+                  <Text style={styles.rebookButtonText}>Thuê xe lại</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : loadingContract ? (
             <View style={styles.section}>
@@ -640,35 +765,12 @@ export default function BookingDetailsScreen() {
             </View>
           ) : ['confirmed', 'active', 'completed'].includes(booking.status) ? (
             <View style={styles.section}>
-              <View style={[styles.contractInfo, { backgroundColor: '#FEF3C7' }]}>
+              <View style={[styles.contractInfo, { backgroundColor: '#FEF3C7' }]}> 
                 <AlertCircle size={20} color="#F59E0B" />
-                <Text style={[styles.contractInfoText, { color: '#92400E' }]}>
+                <Text style={[styles.contractInfoText, { color: '#92400E' }]}> 
                   Hợp đồng đang được xử lý, vui lòng thử lại sau
                 </Text>
               </View>
-              {/* Test button - Remove this later */}
-              <TouchableOpacity
-                style={[styles.contractButton, { backgroundColor: '#6366F1', marginTop: 12 }]}
-                onPress={() => {
-                  Alert.alert(
-                    'Test xem PDF',
-                    'Sẽ mở PDF mẫu từ hệ thống',
-                    [
-                      { text: 'Hủy', style: 'cancel' },
-                      {
-                        text: 'Xem',
-                        onPress: () => router.push({
-                          pathname: '/contract-view',
-                          params: { id: '68fde17bab91b59ebb0b8412', mode: 'pdf' }
-                        })
-                      }
-                    ]
-                  );
-                }}
-              >
-                <FileText size={20} color="#fff" />
-                <Text style={styles.contractButtonText}>🧪 Test xem PDF mẫu</Text>
-              </TouchableOpacity>
             </View>
           ) : null}
 
@@ -737,18 +839,28 @@ export default function BookingDetailsScreen() {
         </View>
       </ScrollView>
 
-      {/* Cancel Button */}
-      {canCancel && (
+      {/* Edit and Cancel Buttons */}
+      {(canEdit || canCancel) && (
         <View style={styles.bottomContainer}>
-          <TouchableOpacity
-            style={[styles.cancelButton, { borderColor: '#EF4444' }]}
-            onPress={handleCancelBooking}
-            disabled={canceling}
-          >
-            <Text style={[styles.cancelButtonText, { color: '#EF4444' }]}>
-              {canceling ? 'Đang hủy...' : 'Hủy đặt xe'}
-            </Text>
-          </TouchableOpacity>
+          {canEdit && (
+            <TouchableOpacity
+              style={[styles.editButton, { backgroundColor: colors.primary }]}
+              onPress={handleEditBooking}
+            >
+              <Text style={styles.editButtonText}>Chỉnh sửa đặt xe</Text>
+            </TouchableOpacity>
+          )}
+          {canCancel && (
+            <TouchableOpacity
+              style={[styles.cancelButton, { borderColor: '#EF4444', marginTop: canEdit ? 12 : 0 }]}
+              onPress={handleCancelBooking}
+              disabled={canceling}
+            >
+              <Text style={[styles.cancelButtonText, { color: '#EF4444' }]}>
+                {canceling ? 'Đang hủy...' : 'Hủy đặt xe'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -767,6 +879,14 @@ export default function BookingDetailsScreen() {
             <Text style={[styles.modalDescription, { color: colors.textSecondary }]}>
               Vui lòng cho biết lý do hủy đặt xe:
             </Text>
+
+            {/* Warning about holding fee */}
+            <View style={styles.warningBox}>
+              <AlertCircle size={18} color="#F59E0B" />
+              <Text style={styles.warningBoxText}>
+                Nếu hủy thì bạn sẽ mất 50.000đ phí giữ chỗ
+              </Text>
+            </View>
             
             <TextInput
               style={[styles.reasonInput, { 
@@ -1084,6 +1204,20 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
+  editButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  editButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
   cancelButton: {
     paddingVertical: 16,
     borderRadius: 12,
@@ -1113,6 +1247,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#fff',
+  },
+  rebookButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 10,
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  rebookButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
   contractInfo: {
     flexDirection: 'row',
@@ -1152,9 +1306,27 @@ const styles = StyleSheet.create({
   },
   modalDescription: {
     fontSize: 14,
-    marginBottom: 20,
+    marginBottom: 16,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: '#F59E0B',
+  },
+  warningBoxText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#92400E',
+    marginLeft: 8,
+    lineHeight: 18,
+    fontWeight: '600',
   },
   reasonInput: {
     borderWidth: 1,
@@ -1191,4 +1363,3 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 });
-

@@ -21,6 +21,7 @@ import { stationAPI } from '@/api/stationAP';
 import { vehiclesAPI } from '@/api/vehiclesAPI';
 import { Booking, AlternativeVehicle } from '@/types/booking';
 import { Station } from '@/types/station';
+import { VehicleListItem, Vehicle, AvailableColor } from '@/types/vehicles';
 
 export default function EditBookingScreen() {
   const { colors } = useThemeStore();
@@ -40,6 +41,12 @@ export default function EditBookingScreen() {
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
   const [selectedColor, setSelectedColor] = useState('');
+  
+  // Original booking info (for comparison)
+  const [originalBrand, setOriginalBrand] = useState('');
+  const [originalModel, setOriginalModel] = useState('');
+  const [originalColor, setOriginalColor] = useState('');
+  const [originalStationName, setOriginalStationName] = useState('');
   const [specialRequests, setSpecialRequests] = useState('');
   const [notes, setNotes] = useState('');
   const [reasonForChange, setReasonForChange] = useState('');
@@ -56,7 +63,9 @@ export default function EditBookingScreen() {
 
   // Vehicle/Model selection (when changing vehicle)
   const [showVehicleModal, setShowVehicleModal] = useState(false);
-  const [availableModels, setAvailableModels] = useState<{brand: string, model: string, color: string}[]>([]);
+  const [availableVehicles, setAvailableVehicles] = useState<VehicleListItem[]>([]);
+  const [loadingVehicles, setLoadingVehicles] = useState(false);
+  const [expandedVehicles, setExpandedVehicles] = useState<{[key: string]: Vehicle}>({});
   
   // Alternative vehicles (if original unavailable)
   const [alternativeVehicles, setAlternativeVehicles] = useState<AlternativeVehicle[]>([]);
@@ -75,6 +84,13 @@ export default function EditBookingScreen() {
     loadStations();
   }, [bookingId]);
 
+  // Load vehicles when station is selected
+  useEffect(() => {
+    if (selectedStationId) {
+      loadAvailableVehicles(selectedStationId);
+    }
+  }, [selectedStationId]);
+
   useEffect(() => {
     // Recalculate when dates, price, or deposit percentage change
     calculatePricing();
@@ -88,14 +104,8 @@ export default function EditBookingScreen() {
       setBooking(bookingData);
 
       // Parse dates properly from YYYY-MM-DD format
-      console.log('📅 Full booking data:', bookingData);
-      console.log('📅 Original dates from API:', {
-        start_date: bookingData.start_date,
-        end_date: bookingData.end_date,
-        pickup_time: bookingData.pickup_time,
-        start_date_type: typeof bookingData.start_date,
-        end_date_type: typeof bookingData.end_date
-      });
+      
+      
 
       // Deposit percentage is ALWAYS 50% for rentals >= 3 days (backend business logic)
       // This matches backend DepositService behavior
@@ -104,15 +114,12 @@ export default function EditBookingScreen() {
       // Only calculate from existing booking data if deposit exists
       if (bookingData.deposit_amount && bookingData.total_price > 0) {
         vehicleDepositPercentage = (bookingData.deposit_amount / bookingData.total_price) * 100;
-        console.log('✅ Calculated deposit_percentage from booking data:', vehicleDepositPercentage.toFixed(2) + '%');
-      } else {
-        console.log('✅ Using default deposit_percentage: 50% (for >= 3 days rental)');
       }
 
       // Parse date from DD/MM/YYYY HH:mm:ss format
       const parseDate = (dateStr: string): Date => {
         if (!dateStr) {
-          console.error('❌ Date string is empty or undefined');
+          
           return new Date(); // Fallback to today
         }
 
@@ -129,20 +136,12 @@ export default function EditBookingScreen() {
         }
 
         // Fallback: try regular Date constructor
-        console.warn('⚠️ Falling back to default Date parser for:', dateStr);
         return new Date(dateStr);
       };
 
       const parsedStartDate = parseDate(bookingData.start_date);
       const parsedEndDate = parseDate(bookingData.end_date);
 
-      console.log('📅 Parsed dates:', {
-        parsedStartDate,
-        parsedEndDate,
-        isValidStart: !isNaN(parsedStartDate.getTime()),
-        isValidEnd: !isNaN(parsedEndDate.getTime())
-      });
-      
       setStartDate(parsedStartDate);
       setEndDate(parsedEndDate);
       
@@ -152,24 +151,24 @@ export default function EditBookingScreen() {
       timeDate.setHours(parseInt(hours), parseInt(minutes), 0);
       setPickupTime(timeDate);
 
+      // Set current selections
       setSelectedStationId(bookingData.station_id._id);
       setSelectedStationName(bookingData.station_id.name);
       setSelectedModel(bookingData.vehicle_id.model);
       setSelectedBrand(bookingData.vehicle_id.brand);
       setSelectedColor(bookingData.vehicle_id.color);
+      
+      // Save original values for comparison
+      setOriginalBrand(bookingData.vehicle_id.brand);
+      setOriginalModel(bookingData.vehicle_id.model);
+      setOriginalColor(bookingData.vehicle_id.color);
+      setOriginalStationName(bookingData.station_id.name);
       setSpecialRequests(bookingData.special_requests || '');
       setNotes(bookingData.notes || '');
       setPricePerDay(bookingData.price_per_day);
       
       // Set deposit percentage from fetched vehicle data
       setDepositPercentage(vehicleDepositPercentage);
-      
-      console.log('💰 Deposit data:', {
-        deposit_amount: bookingData.deposit_amount,
-        total_price: bookingData.total_price,
-        vehicle_deposit_percentage: vehicleDepositPercentage,
-        calculated_percentage: bookingData.total_price > 0 ? (bookingData.deposit_amount / bookingData.total_price * 100) : 0
-      });
       
       // Set deposit amount from booking
       setOriginalDepositAmount(bookingData.deposit_amount || 0);
@@ -178,7 +177,7 @@ export default function EditBookingScreen() {
       }
 
     } catch (error: any) {
-      console.error('Error loading booking:', error);
+      
       Alert.alert('Lỗi', 'Không thể tải thông tin đặt xe');
       router.back();
     } finally {
@@ -192,9 +191,43 @@ export default function EditBookingScreen() {
       const response = await stationAPI.getStation({ status: 'active' });
       setStations(response.stations || []);
     } catch (error) {
-      console.error('Error loading stations:', error);
+      
     } finally {
       setLoadingStations(false);
+    }
+  };
+
+  const loadAvailableVehicles = async (stationId?: string) => {
+    const targetStationId = stationId || selectedStationId;
+    if (!targetStationId) return;
+    
+    try {
+      setLoadingVehicles(true);
+      // Load vehicles at the selected station
+      const response = await vehiclesAPI.getVehicles({
+        station_id: targetStationId,
+        limit: 100
+      });
+      
+      setAvailableVehicles(response.vehicles || []);
+      
+      // Load detailed info for each vehicle model to get all colors
+      const detailsMap: {[key: string]: Vehicle} = {};
+      for (const vehicle of response.vehicles || []) {
+        if (vehicle.sample_vehicle_id) {
+          try {
+            const details = await vehiclesAPI.getVehicleById(vehicle.sample_vehicle_id);
+            detailsMap[vehicle.sample_vehicle_id] = details;
+          } catch (err) {
+            console.error('Error loading vehicle details:', err);
+          }
+        }
+      }
+      setExpandedVehicles(detailsMap);
+    } catch (error) {
+      console.error('Error loading vehicles:', error);
+    } finally {
+      setLoadingVehicles(false);
     }
   };
 
@@ -245,6 +278,14 @@ export default function EditBookingScreen() {
     return `${hours}:${minutes}`;
   };
 
+  const translateVehicleType = (type: string): string => {
+    const translations: { [key: string]: string } = {
+      'scooter': 'Xe tay ga',
+      'motorcycle': 'Xe mô tô',
+    };
+    return translations[type.toLowerCase()] || type;
+  };
+
   const handleSaveChanges = async () => {
     if (!booking) return;
 
@@ -291,7 +332,7 @@ export default function EditBookingScreen() {
         reason_for_change: reasonForChange.trim(),
       };
 
-      console.log('Updating booking with:', updateData);
+      
 
       const response = await bookingAPI.updateBooking(bookingId, updateData);
 
@@ -317,7 +358,7 @@ export default function EditBookingScreen() {
       );
 
     } catch (error: any) {
-      console.error('Error updating booking:', error);
+      
       const errorMessage = error.response?.data?.message || error.message || 'Không thể cập nhật booking';
       Alert.alert('Cập nhật thất bại', errorMessage);
     } finally {
@@ -329,7 +370,35 @@ export default function EditBookingScreen() {
     setSelectedStationId(station._id);
     setSelectedStationName(station.name);
     setShowStationModal(false);
+    // Vehicles will be loaded automatically by useEffect
   };
+
+  const handleSelectVehicle = (vehicle: VehicleListItem, colorOption?: any) => {
+    // If a specific color is selected, use that
+    // Otherwise use the default color from vehicle
+    const selectedColorInfo = colorOption || {
+      color: vehicle.color,
+      price_per_day: vehicle.price_per_day,
+      deposit_percentage: vehicle.deposit_percentage
+    };
+    
+    setSelectedBrand(vehicle.brand);
+    setSelectedModel(vehicle.model);
+    setSelectedColor(selectedColorInfo.color);
+    setPricePerDay(selectedColorInfo.price_per_day || vehicle.price_per_day);
+    
+    // Update deposit percentage from backend
+    // Priority: colorOption > vehicleDetails > vehicle > fallback 50%
+    const vehicleDetails = expandedVehicles[vehicle.sample_vehicle_id];
+    const depositPct = colorOption?.deposit_percentage ||
+                      vehicleDetails?.deposit_percentage ||
+                      vehicle.deposit_percentage ||
+                      50;
+    
+    setDepositPercentage(depositPct);
+    setShowVehicleModal(false);
+  };
+
 
   const handleSelectAlternativeVehicle = async (vehicle: AlternativeVehicle) => {
     setSelectedBrand(vehicle.brand);
@@ -394,13 +463,39 @@ export default function EditBookingScreen() {
           {/* Vehicle Selection */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Thông tin xe</Text>
+            
+            {/* Original Vehicle */}
+            <View style={styles.comparisonCard}>
+              <Text style={styles.comparisonLabel}>Xe ban đầu:</Text>
+              <Text style={styles.comparisonValue}>
+                {originalBrand} {originalModel} - {originalColor}
+              </Text>
+            </View>
+
+            {/* New Vehicle Selection */}
             <TouchableOpacity
-              style={styles.selectButton}
-              onPress={() => Alert.alert('Thông báo', 'Vui lòng chọn model xe mới nếu muốn đổi xe')}
+              style={[
+                styles.selectButton,
+                (selectedBrand !== originalBrand ||
+                 selectedModel !== originalModel ||
+                 selectedColor !== originalColor) && styles.selectButtonChanged
+              ]}
+              onPress={() => setShowVehicleModal(true)}
             >
               <View style={styles.selectContent}>
-                <Text style={styles.selectLabel}>Xe hiện tại</Text>
-                <Text style={styles.selectValue}>
+                <Text style={styles.selectLabel}>
+                  {(selectedBrand !== originalBrand ||
+                    selectedModel !== originalModel ||
+                    selectedColor !== originalColor)
+                    ? '✓ Xe mới đã chọn'
+                    : 'Nhấn để chọn xe mới'}
+                </Text>
+                <Text style={[
+                  styles.selectValue,
+                  (selectedBrand !== originalBrand ||
+                   selectedModel !== originalModel ||
+                   selectedColor !== originalColor) && styles.selectValueChanged
+                ]}>
                   {selectedBrand} {selectedModel} - {selectedColor}
                 </Text>
               </View>
@@ -410,14 +505,37 @@ export default function EditBookingScreen() {
           {/* Station Selection */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Trạm lấy xe</Text>
+            
+            {/* Original Station */}
+            <View style={styles.comparisonCard}>
+              <MapPin size={18} color="#6B7280" />
+              <View style={{ marginLeft: 8, flex: 1 }}>
+                <Text style={styles.comparisonLabel}>Trạm ban đầu:</Text>
+                <Text style={styles.comparisonValue}>{originalStationName}</Text>
+              </View>
+            </View>
+
+            {/* New Station Selection */}
             <TouchableOpacity
-              style={styles.selectButton}
+              style={[
+                styles.selectButton,
+                selectedStationName !== originalStationName && styles.selectButtonChanged
+              ]}
               onPress={() => setShowStationModal(true)}
             >
               <MapPin size={20} color={colors.primary} />
               <View style={styles.selectContent}>
-                <Text style={styles.selectLabel}>Trạm</Text>
-                <Text style={styles.selectValue}>{selectedStationName}</Text>
+                <Text style={styles.selectLabel}>
+                  {selectedStationName !== originalStationName
+                    ? '✓ Trạm mới đã chọn'
+                    : 'Nhấn để chọn trạm mới'}
+                </Text>
+                <Text style={[
+                  styles.selectValue,
+                  selectedStationName !== originalStationName && styles.selectValueChanged
+                ]}>
+                  {selectedStationName}
+                </Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -690,6 +808,116 @@ export default function EditBookingScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Vehicle Selection Modal */}
+      <Modal
+        visible={showVehicleModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowVehicleModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Chọn xe tại trạm đã chọn</Text>
+              <TouchableOpacity onPress={() => setShowVehicleModal(false)}>
+                <X size={24} color="#111827" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView>
+              {loadingVehicles ? (
+                <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
+              ) : availableVehicles.length === 0 ? (
+                <View style={{ padding: 20, alignItems: 'center' }}>
+                  <Text style={{ color: '#6B7280', fontSize: 14 }}>
+                    Không có xe nào tại trạm này
+                  </Text>
+                </View>
+              ) : (
+                availableVehicles.map((vehicle) => {
+                  const vehicleDetails = expandedVehicles[vehicle.sample_vehicle_id];
+                  const availableColors = vehicleDetails?.available_colors || [];
+                  
+                  return (
+                    <View key={vehicle.sample_vehicle_id}>
+                      {/* Vehicle Model Header */}
+                      <View style={styles.vehicleModelHeader}>
+                        <View style={styles.vehicleModelInfo}>
+                          {vehicle.sample_image && (
+                            <Image
+                              source={{ uri: vehicle.sample_image }}
+                              style={styles.vehicleModelImage}
+                              resizeMode="cover"
+                            />
+                          )}
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.vehicleModelName}>
+                              {vehicle.brand} {vehicle.model}
+                            </Text>
+                            <Text style={styles.vehicleModelDetail}>
+                              {vehicle.year} • {translateVehicleType(vehicle.type)} • Pin: {vehicle.battery_capacity}Ah
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                      
+                      {/* Available Colors */}
+                      {availableColors.length > 0 ? (
+                        availableColors.map((colorOption: AvailableColor, colorIndex: number) => (
+                          <TouchableOpacity
+                            key={colorIndex}
+                            style={[
+                              styles.colorOptionItem,
+                              selectedBrand === vehicle.brand &&
+                              selectedModel === vehicle.model &&
+                              selectedColor === colorOption.color &&
+                              { backgroundColor: '#F0F9FF', borderColor: colors.primary }
+                            ]}
+                            onPress={() => handleSelectVehicle(vehicle, colorOption)}
+                          >
+                            <View style={styles.colorOptionInfo}>
+                              <Text style={styles.colorOptionName}>
+                                Màu: {colorOption.color}
+                              </Text>
+                              <Text style={styles.colorOptionAvailable}>
+                                Còn {colorOption.available_quantity} xe
+                              </Text>
+                            </View>
+                            <Text style={styles.colorOptionPrice}>
+                              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(colorOption.price_per_day)}/ngày
+                            </Text>
+                          </TouchableOpacity>
+                        ))
+                      ) : (
+                        <TouchableOpacity
+                          style={[
+                            styles.colorOptionItem,
+                            selectedBrand === vehicle.brand &&
+                            selectedModel === vehicle.model &&
+                            { backgroundColor: '#F0F9FF', borderColor: colors.primary }
+                          ]}
+                          onPress={() => handleSelectVehicle(vehicle)}
+                        >
+                          <View style={styles.colorOptionInfo}>
+                            <Text style={styles.colorOptionName}>
+                              Màu: {vehicle.color}
+                            </Text>
+                          </View>
+                          <Text style={styles.colorOptionPrice}>
+                            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(vehicle.price_per_day)}/ngày
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
@@ -797,6 +1025,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#111827',
+  },
+  selectButtonChanged: {
+    borderWidth: 2,
+    borderColor: '#10B981',
+    backgroundColor: '#F0FDF4',
+  },
+  selectValueChanged: {
+    color: '#059669',
+  },
+  comparisonCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#9CA3AF',
+  },
+  comparisonLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 2,
+  },
+  comparisonValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
   },
   dateTimeButton: {
     flexDirection: 'row',
@@ -968,6 +1224,146 @@ const styles = StyleSheet.create({
     color: '#10B981',
     fontWeight: '600',
     marginTop: 4,
+  },
+  // Vehicle selection styles
+  vehicleItem: {
+    flexDirection: 'row',
+    padding: 12,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    marginHorizontal: 20,
+    marginVertical: 8,
+    backgroundColor: '#fff',
+  },
+  vehicleImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  vehicleInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  vehicleName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  vehicleDetail: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginBottom: 2,
+  },
+  vehiclePrice: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#059669',
+    marginTop: 4,
+  },
+  vehicleAvailable: {
+    fontSize: 13,
+    color: '#10B981',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  // Vehicle model header styles
+  vehicleModelHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: '#F9FAFB',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  vehicleModelInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  vehicleModelImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  vehicleModelName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  vehicleModelDetail: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  // Color option item styles
+  colorOptionItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    marginHorizontal: 20,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    borderRadius: 8,
+    marginVertical: 4,
+    backgroundColor: '#fff',
+  },
+  colorOptionInfo: {
+    flex: 1,
+  },
+  colorOptionName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  colorOptionAvailable: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  colorOptionPrice: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#059669',
+    marginLeft: 12,
+  },
+  // Color selection styles
+  colorItem: {
+    flexDirection: 'row',
+    padding: 12,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    marginHorizontal: 20,
+    marginVertical: 8,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  colorImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  colorInfo: {
+    flex: 1,
+  },
+  colorName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  colorAvailable: {
+    fontSize: 13,
+    color: '#10B981',
+    fontWeight: '600',
   },
 });
 
