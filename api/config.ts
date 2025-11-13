@@ -20,7 +20,7 @@ apiClient.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (error) {
-      
+
     }
 
     // If sending FormData, ensure we don't have a manually set Content-Type
@@ -51,17 +51,17 @@ apiClient.interceptors.response.use(
   async (error: any) => {
     const status = error.response?.status;
     const url = error.config?.url;
-    
+
 
     if (status === 401) {
       // Skip redirect for login/register/forgot-password/change-password endpoints
       // (these endpoints naturally return 401 for invalid credentials)
-      const isAuthEndpoint = url?.includes('/auth/login') || 
-                            url?.includes('/auth/register') || 
-                            url?.includes('/auth/forgot-password') ||
-                            url?.includes('/auth/reset-password') ||
-                            url?.includes('/auth/change-password');
-      
+      const isAuthEndpoint = url?.includes('/auth/login') ||
+        url?.includes('/auth/register') ||
+        url?.includes('/auth/forgot-password') ||
+        url?.includes('/auth/reset-password') ||
+        url?.includes('/auth/change-password');
+
       if (!isAuthEndpoint) {
         // Token expired or invalid - clear local auth data
         try {
@@ -71,7 +71,7 @@ apiClient.interceptors.response.use(
           // Navigate to login screen
           router.replace('/(auth)/login');
         } catch (e) {
-          
+
         }
       }
     }

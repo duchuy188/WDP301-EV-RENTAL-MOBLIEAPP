@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  BackHandler,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -26,6 +27,58 @@ export default function VNPayPaymentScreen() {
   const [paymentProcessed, setPaymentProcessed] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const webViewRef = useRef<WebView>(null);
+
+  // Handle hardware back button on Android
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // Show cancel confirmation
+      Alert.alert(
+        'Hủy thanh toán',
+        'Quý khách có chắc chắn muốn hủy thanh toán giao dịch này?',
+        [
+          {
+            text: 'Đóng',
+            style: 'cancel',
+            onPress: () => {} // Do nothing, stay on page
+          },
+          {
+            text: 'Xác nhận hủy',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                setIsCancelling(true);
+                
+                // Cancel pending booking
+                if (bookingId && bookingId.startsWith('PB')) {
+                  await bookingAPI.cancelPendingBooking(bookingId);
+                }
+                
+                // Navigate back
+                router.replace('/(tabs)/history');
+                
+                // Show success message
+                setTimeout(() => {
+                  Alert.alert(
+                    'Hủy thanh toán thành công',
+                    'Đơn đặt xe đã được hủy. Xe đã được nhả ra.'
+                  );
+                }, 500);
+              } catch (error: any) {
+                const errorMsg = error.response?.data?.message || error.message || 'Không thể hủy đặt xe';
+                Alert.alert('Lỗi', errorMsg);
+                router.replace('/(tabs)/history');
+              } finally {
+                setIsCancelling(false);
+              }
+            }
+          }
+        ]
+      );
+      return true; // Prevent default back behavior
+    });
+
+    return () => backHandler.remove();
+  }, [bookingId]);
 
   const handleNavigationStateChange = async (navState: any) => {
     const { url } = navState;
@@ -100,7 +153,7 @@ export default function VNPayPaymentScreen() {
             );
           }, 500);
         } else {
-          // Payment failed or cancelled
+          // Payment failed or cancelled - Cancel pending booking
           const errorMessages: { [key: string]: string } = {
             '07': 'Giao dịch bị nghi ngờ gian lận',
             '09': 'Thẻ/Tài khoản chưa đăng ký dịch vụ InternetBanking',
@@ -117,6 +170,17 @@ export default function VNPayPaymentScreen() {
           };
           
           const errorMessage = errorMessages[vnpResponseCode || '99'] || 'Thanh toán không thành công';
+          
+          // Auto-cancel pending booking on payment failure
+          (async () => {
+            if (bookingId && bookingId.startsWith('PB')) {
+              try {
+                await bookingAPI.cancelPendingBooking(bookingId);
+              } catch (error) {
+                console.error('Failed to auto-cancel pending booking:', error);
+              }
+            }
+          })();
           
           Alert.alert(
             'Thanh toán thất bại',
@@ -197,6 +261,7 @@ export default function VNPayPaymentScreen() {
               );
             }, 500);
           } else {
+            // Payment failed - Auto-cancel pending booking
             const errorMessages: { [key: string]: string } = {
               '07': 'Giao dịch bị nghi ngờ gian lận',
               '09': 'Thẻ/Tài khoản chưa đăng ký dịch vụ InternetBanking',
@@ -213,6 +278,17 @@ export default function VNPayPaymentScreen() {
             };
             
             const errorMessage = errorMessages[vnpResponseCode || '99'] || 'Thanh toán không thành công';
+            
+            // Auto-cancel pending booking on payment failure
+            (async () => {
+              if (bookingId && bookingId.startsWith('PB')) {
+                try {
+                  await bookingAPI.cancelPendingBooking(bookingId);
+                } catch (error) {
+                  console.error('Failed to auto-cancel pending booking:', error);
+                }
+              }
+            })();
             
             Alert.alert(
               'Thanh toán thất bại',
@@ -262,13 +338,18 @@ export default function VNPayPaymentScreen() {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => {
+            // Always show cancel confirmation (don't allow back in WebView)
             Alert.alert(
-              'Hủy thanh toán?',
-              'Bạn có chắc muốn hủy thanh toán? Đơn đặt xe sẽ bị hủy.',
+              'Hủy thanh toán',
+              'Quý khách có chắc chắn muốn hủy thanh toán giao dịch này?',
               [
-                { text: 'Không', style: 'cancel' },
                 {
-                  text: 'Hủy',
+                  text: 'Đóng',
+                  style: 'cancel'
+                },
+                {
+                  text: 'Xác nhận hủy',
+                  style: 'destructive',
                   onPress: async () => {
                     try {
                       setIsCancelling(true);
@@ -277,13 +358,13 @@ export default function VNPayPaymentScreen() {
                       if (bookingId && bookingId.startsWith('PB')) {
                         await bookingAPI.cancelPendingBooking(bookingId);
                         
-                        // Navigate back and let useFocusEffect refresh the list
+                        // Navigate back first
                         router.replace('/(tabs)/history');
                         
-                        // Show success message after navigation
+                        // Show success alert after navigation
                         setTimeout(() => {
                           Alert.alert(
-                            'Đã hủy thành công',
+                            'Hủy thanh toán thành công',
                             'Đơn đặt xe đã được hủy. Xe đã được nhả ra.'
                           );
                         }, 500);
@@ -291,17 +372,17 @@ export default function VNPayPaymentScreen() {
                         router.replace('/(tabs)/history');
                       }
                     } catch (error: any) {
+                      const errorMsg = error.response?.data?.message || error.message || 'Không thể hủy đặt xe';
                       
                       Alert.alert(
                         'Lỗi',
-                        'Không thể hủy đặt xe. Vui lòng thử lại.',
+                        errorMsg,
                         [{ text: 'OK', onPress: () => router.replace('/(tabs)/history') }]
                       );
                     } finally {
                       setIsCancelling(false);
                     }
-                  },
-                  style: 'destructive'
+                  }
                 }
               ]
             );
@@ -329,6 +410,25 @@ export default function VNPayPaymentScreen() {
           ref={webViewRef}
           source={{ uri: paymentUrl }}
           onNavigationStateChange={handleNavigationStateChange}
+          onShouldStartLoadWithRequest={(request) => {
+            const url = request.url;
+            
+            // Intercept callback URL to prevent loading localhost and handle immediately
+            if ((url.includes('/holding-fee/callback') ||
+                 url.includes('vnp_ResponseCode') ||
+                 url.includes('/booking-success')) &&
+                !paymentProcessed) {
+              
+              // Manually trigger navigation handler with the intercepted URL
+              handleNavigationStateChange({ url, canGoBack: false });
+              
+              // Prevent WebView from actually loading the URL
+              return false;
+            }
+            
+            // Allow all other URLs to load normally
+            return true;
+          }}
           onLoadStart={() => setIsLoading(true)}
           onLoadEnd={() => setIsLoading(false)}
           onError={handleError}

@@ -185,7 +185,7 @@ export default function BookingScreen() {
             pathname: '/vnpay-payment',
             params: {
               paymentUrl: holding_fee.payment_url,
-              bookingId: pending_booking_id || temp_id,
+              bookingId: temp_id || pending_booking_id, // ✅ Prioritize temp_id (starts with 'PB')
               amount: holding_fee.amount.toString()
             }
           });
