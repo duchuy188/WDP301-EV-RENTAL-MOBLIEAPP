@@ -521,7 +521,7 @@ export default function RentalDetailsScreen() {
                   <Text style={styles.conditionValue}>{rental.vehicle_condition_before?.battery_level ?? '-'}%</Text>
                 </View>
                 <View style={styles.conditionRow}>
-                  <Text style={styles.conditionLabel}>Ngoại thất:</Text>
+                  <Text style={styles.conditionLabel}>Ngoại hình (dàn áo):</Text>
                   <Text style={styles.conditionValue}>
                     {rental.vehicle_condition_before?.exterior_condition 
                       ? getConditionLabel(rental.vehicle_condition_before.exterior_condition) 
@@ -529,7 +529,7 @@ export default function RentalDetailsScreen() {
                   </Text>
                 </View>
                 <View style={styles.conditionRow}>
-                  <Text style={styles.conditionLabel}>Nội thất:</Text>
+                  <Text style={styles.conditionLabel}>Kỹ thuật:</Text>
                   <Text style={styles.conditionValue}>
                     {rental.vehicle_condition_before?.interior_condition 
                       ? getConditionLabel(rental.vehicle_condition_before.interior_condition) 
@@ -614,7 +614,7 @@ export default function RentalDetailsScreen() {
                   <Text style={styles.conditionValue}>{rental.vehicle_condition_after?.battery_level ?? '-'}%</Text>
                 </View>
                 <View style={styles.conditionRow}>
-                  <Text style={styles.conditionLabel}>Ngoại thất:</Text>
+                  <Text style={styles.conditionLabel}>Ngoại hình (dàn áo):</Text>
                   <Text style={styles.conditionValue}>
                     {rental.vehicle_condition_after?.exterior_condition 
                       ? getConditionLabel(rental.vehicle_condition_after.exterior_condition) 
@@ -622,7 +622,7 @@ export default function RentalDetailsScreen() {
                   </Text>
                 </View>
                 <View style={styles.conditionRow}>
-                  <Text style={styles.conditionLabel}>Nội thất:</Text>
+                  <Text style={styles.conditionLabel}>Kỹ thuật:</Text>
                   <Text style={styles.conditionValue}>
                     {rental.vehicle_condition_after?.interior_condition 
                       ? getConditionLabel(rental.vehicle_condition_after.interior_condition) 
