@@ -12,12 +12,12 @@ import {
   TextInput,
 } from 'react-native';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
-import { 
-  ArrowLeft, 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  Phone, 
+import {
+  ArrowLeft,
+  Calendar,
+  Clock,
+  MapPin,
+  Phone,
   Mail,
   DollarSign,
   FileText,
@@ -27,6 +27,7 @@ import {
   Loader,
   Eye,
   Download,
+  AlertTriangle,
 } from 'lucide-react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
@@ -34,6 +35,7 @@ import { useThemeStore } from '@/store/themeStore';
 import { bookingAPI } from '@/api/bookingAPI';
 import { contractAPI } from '@/api/contractAPI';
 import { rentalAPI } from '@/api/rentalsAPI';
+import { reportsAPI } from '@/api/reportsAPI';
 
 interface BookingDetail {
   _id: string;
@@ -113,6 +115,9 @@ export default function BookingDetailsScreen() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [expandedNotes, setExpandedNotes] = useState(false);
+  const [hasPendingReport, setHasPendingReport] = useState(false);
+  const [checkingReport, setCheckingReport] = useState(false);
+  const [hasAnyReport, setHasAnyReport] = useState(false);
 
   // Auto-refresh when screen is focused (e.g., after editing booking)
   useFocusEffect(
@@ -149,6 +154,11 @@ export default function BookingDetailsScreen() {
 
       // Try to find rental for this booking
       loadRentalByBooking(response.booking);
+      
+      // Check if there's any pending report
+      if (response.booking._id) {
+        checkPendingReportForBooking(response.booking._id);
+      }
     } catch (error) {
       
       Alert.alert('Lỗi', 'Không thể tải thông tin đặt xe');
@@ -183,6 +193,38 @@ export default function BookingDetailsScreen() {
       }
     } catch (error) {
       
+    }
+  };
+
+  const checkPendingReportForBooking = async (bookingIdToCheck: string) => {
+    try {
+      setCheckingReport(true);
+      // Get all user reports and filter by this booking
+      const response = await reportsAPI.getUserReports();
+      
+      // API trả về { success: true, data: [...] }
+      const allReports = response.data || [];
+      const bookingReports = allReports.filter((report: any) => {
+        const reportBookingId = typeof report.booking_id === 'string'
+          ? report.booking_id
+          : report.booking_id?._id;
+        return reportBookingId === bookingIdToCheck;
+      });
+      
+      setHasAnyReport(bookingReports.length > 0);
+      
+      // Kiểm tra pending reports
+      const pendingReports = bookingReports.filter((report: any) => report.status === 'pending');
+      setHasPendingReport(pendingReports.length > 0);
+    } catch (error: any) {
+      // Nếu API lỗi hoặc chưa có endpoint, cho phép báo cáo (không ẩn nút)
+      // Chỉ log nếu không phải lỗi 404 hoặc 500
+      if (error?.response?.status !== 404 && error?.response?.status !== 500) {
+        console.log('[CHECK REPORT]', 'Error checking reports:', error);
+      }
+      setHasPendingReport(false); // Cho phép báo cáo nếu API lỗi
+    } finally {
+      setCheckingReport(false);
     }
   };
 
@@ -774,6 +816,44 @@ export default function BookingDetailsScreen() {
             </View>
           ) : null}
 
+          {/* Report Issue Button for Confirmed Bookings - Chỉ hiện nếu chưa có báo cáo pending */}
+          {booking.status === 'confirmed' && !hasPendingReport && !checkingReport && (
+            <View style={styles.section}>
+              <TouchableOpacity
+                style={[styles.reportButton, { backgroundColor: '#EF4444' }]}
+                onPress={() => {
+                  router.push({
+                    pathname: '/submit-report',
+                    params: {
+                      bookingId: booking._id,
+                      rentalId: rentalId || '',
+                    }
+                  });
+                }}
+                activeOpacity={0.8}
+              >
+                <AlertTriangle size={20} color="#fff" />
+                <Text style={styles.reportButtonText}>Báo cáo sự cố</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* View Reports Button - Hiện nếu đã có báo cáo */}
+          {hasAnyReport && (
+            <View style={styles.section}>
+              <TouchableOpacity
+                style={[styles.viewReportsButton, { backgroundColor: '#3B82F6' }]}
+                onPress={() => {
+                  router.push('/my-reports');
+                }}
+                activeOpacity={0.8}
+              >
+                <Eye size={20} color="#fff" />
+                <Text style={styles.viewReportsButtonText}>Xem báo cáo sự cố</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Notes */}
           {(booking.special_requests || booking.notes) && (
             <View style={styles.section}>
@@ -1360,6 +1440,43 @@ const styles = StyleSheet.create({
   confirmModalButtonText: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#fff',
+  },
+  reportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  reportButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  viewReportsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  viewReportsButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
     color: '#fff',
   },
 });

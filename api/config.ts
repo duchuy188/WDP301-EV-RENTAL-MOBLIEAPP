@@ -23,12 +23,14 @@ apiClient.interceptors.request.use(
 
     }
 
-    // If sending FormData, ensure we don't have a manually set Content-Type
+    // If sending FormData, ensure we set multipart/form-data
     const isFormData = (val: any): val is FormData => typeof FormData !== 'undefined' && val instanceof FormData;
     if (config.headers) {
       if (isFormData(config.data)) {
+        // For FormData, explicitly set multipart/form-data
         delete (config.headers as any)['Content-Type'];
         delete (config.headers as any)['content-type'];
+        config.headers['Content-Type'] = 'multipart/form-data';
       } else {
         // For JSON payloads, set Content-Type only if not already specified
         if (!config.headers['Content-Type'] && !config.headers['content-type']) {
