@@ -410,25 +410,6 @@ export default function VNPayPaymentScreen() {
           ref={webViewRef}
           source={{ uri: paymentUrl }}
           onNavigationStateChange={handleNavigationStateChange}
-          onShouldStartLoadWithRequest={(request) => {
-            const url = request.url;
-            
-            // Intercept callback URL to prevent loading localhost and handle immediately
-            if ((url.includes('/holding-fee/callback') ||
-                 url.includes('vnp_ResponseCode') ||
-                 url.includes('/booking-success')) &&
-                !paymentProcessed) {
-              
-              // Manually trigger navigation handler with the intercepted URL
-              handleNavigationStateChange({ url, canGoBack: false });
-              
-              // Prevent WebView from actually loading the URL
-              return false;
-            }
-            
-            // Allow all other URLs to load normally
-            return true;
-          }}
           onLoadStart={() => setIsLoading(true)}
           onLoadEnd={() => setIsLoading(false)}
           onError={handleError}

@@ -12,13 +12,13 @@ import {
   Dimensions,
   ActivityIndicator,
 } from 'react-native';
-import { 
-  CircleHelp as HelpCircle, 
-  LogOut, 
-  ChevronRight, 
-  Shield, 
-  Star, 
-  Award, 
+import {
+  CircleHelp as HelpCircle,
+  LogOut,
+  ChevronRight,
+  Shield,
+  Star,
+  Award,
   Edit3,
   MapPin,
   FileText,
@@ -27,6 +27,7 @@ import {
   Key,
   Flag,
   XCircle,
+  AlertTriangle,
 } from 'lucide-react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -290,6 +291,12 @@ export default function ProfileScreen() {
           title: 'Xác thực kyc',
           icon: <FileText size={20} color={colors.textSecondary} />,
           onPress: () => router.push('/verify-documents'),
+        },
+        {
+          id: 3,
+          title: 'Xem báo cáo sự cố',
+          icon: <AlertTriangle size={20} color={colors.textSecondary} />,
+          onPress: () => router.push('/my-reports'),
         },
       ]
     },
