@@ -12,6 +12,7 @@ import {
   RefreshControl,
   Modal,
   Alert,
+  AppState,
 } from 'react-native';
 import { Calendar, MapPin, Clock, DollarSign, TrendingUp, ChevronRight, ChevronLeft, X, CreditCard, XCircle } from 'lucide-react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -44,6 +45,10 @@ export default function HistoryScreen() {
   const [forceRender, setForceRender] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   
+  // Auto-refresh timer
+  const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const AUTO_REFRESH_INTERVAL = 30000; // 30 seconds
+  
   // Modal state for pending booking details
   const [selectedPendingBooking, setSelectedPendingBooking] = useState<any>(null);
   const [showPendingModal, setShowPendingModal] = useState(false);
@@ -57,8 +62,54 @@ export default function HistoryScreen() {
         loadPendingBookings();
       };
       loadData();
+      
+      // Start auto-refresh timer when focused
+      startAutoRefresh();
+      
+      // Cleanup: stop auto-refresh when unfocused
+      return () => {
+        stopAutoRefresh();
+      };
     }, [])
   );
+
+  // Auto-refresh function
+  const startAutoRefresh = () => {
+    // Clear existing timer
+    stopAutoRefresh();
+    
+    // Set new timer
+    autoRefreshTimerRef.current = setInterval(async () => {
+      console.log('🔄 Auto-refreshing data...');
+      await loadBookingsAndStats();
+      loadPendingBookings();
+    }, AUTO_REFRESH_INTERVAL);
+  };
+
+  const stopAutoRefresh = () => {
+    if (autoRefreshTimerRef.current) {
+      clearInterval(autoRefreshTimerRef.current);
+      autoRefreshTimerRef.current = null;
+    }
+  };
+
+  // Pause auto-refresh when app goes to background
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        // App came to foreground, restart auto-refresh
+        startAutoRefresh();
+      } else {
+        // App went to background, stop auto-refresh to save battery
+        stopAutoRefresh();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+      stopAutoRefresh();
+    };
+  }, []);
 
   // Initialize countdown timers when pending bookings change
   useEffect(() => {

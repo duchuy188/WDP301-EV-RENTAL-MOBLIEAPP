@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Alert,
   Modal,
   TextInput,
+  AppState,
 } from 'react-native';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import {
@@ -120,12 +121,88 @@ export default function BookingDetailsScreen() {
   const [checkingReport, setCheckingReport] = useState(false);
   const [hasAnyReport, setHasAnyReport] = useState(false);
 
+  // Auto-refresh timer
+  const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const AUTO_REFRESH_INTERVAL = 30000; // 30 seconds
+
+  // Auto-refresh function
+  const startAutoRefresh = useCallback(() => {
+    // Clear existing timer
+    if (autoRefreshTimerRef.current) {
+      clearInterval(autoRefreshTimerRef.current);
+      autoRefreshTimerRef.current = null;
+    }
+    
+    // Set new timer
+    autoRefreshTimerRef.current = setInterval(async () => {
+      console.log('🔄 Auto-refreshing booking details...');
+      try {
+        const response = await bookingAPI.getBooking(bookingId);
+        setBooking(response.booking as any);
+        setCanCancel(response.canCancel || false);
+        const editAllowed = checkCanEditBooking(response.booking);
+        setCanEdit(editAllowed);
+        
+        // Check contract - IMPORTANT: call loadContractByBookingData if no contract_id
+        if ((response.booking as any).contract_id) {
+          setContractId((response.booking as any).contract_id);
+        } else {
+          // Try to find contract again
+          loadContractByBookingData(response.booking);
+        }
+        
+        // Refresh rental info
+        loadRentalByBooking(response.booking);
+        
+        // Refresh report status
+        if (response.booking._id) {
+          checkPendingReportForBooking(response.booking._id);
+        }
+      } catch (error) {
+        console.log('Auto-refresh error:', error);
+      }
+    }, AUTO_REFRESH_INTERVAL) as any;
+  }, [bookingId]);
+
+  const stopAutoRefresh = useCallback(() => {
+    if (autoRefreshTimerRef.current) {
+      clearInterval(autoRefreshTimerRef.current);
+      autoRefreshTimerRef.current = null;
+    }
+  }, []);
+
   // Auto-refresh when screen is focused (e.g., after editing booking)
   useFocusEffect(
     useCallback(() => {
       loadBookingDetails();
-    }, [bookingId])
+      
+      // Start auto-refresh timer when focused
+      startAutoRefresh();
+      
+      // Cleanup: stop auto-refresh when unfocused
+      return () => {
+        stopAutoRefresh();
+      };
+    }, [bookingId, startAutoRefresh, stopAutoRefresh])
   );
+
+  // Pause auto-refresh when app goes to background
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        // App came to foreground, restart auto-refresh
+        startAutoRefresh();
+      } else {
+        // App went to background, stop auto-refresh to save battery
+        stopAutoRefresh();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+      stopAutoRefresh();
+    };
+  }, [startAutoRefresh, stopAutoRefresh]);
 
   const loadBookingDetails = async () => {
     try {

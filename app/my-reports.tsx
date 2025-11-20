@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Image,
+  AppState,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { ArrowLeft, AlertTriangle, CheckCircle, Clock, ChevronRight } from 'lucide-react-native';
@@ -24,11 +25,69 @@ export default function MyReportsScreen() {
   const [reports, setReports] = useState<Report[]>([]);
   const [filter, setFilter] = useState<'all' | 'pending' | 'resolved'>('all');
 
+  // Auto-refresh timer
+  const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const AUTO_REFRESH_INTERVAL = 30000; // 30 seconds
+
+  // Auto-refresh function
+  const startAutoRefresh = useCallback(() => {
+    // Clear existing timer
+    if (autoRefreshTimerRef.current) {
+      clearInterval(autoRefreshTimerRef.current);
+      autoRefreshTimerRef.current = null;
+    }
+    
+    // Set new timer
+    autoRefreshTimerRef.current = setInterval(async () => {
+      console.log('🔄 Auto-refreshing reports...');
+      try {
+        const params = filter !== 'all' ? { status: filter } : undefined;
+        const response = await reportsAPI.getUserReports(params);
+        setReports(response.data || []);
+      } catch (error) {
+        console.log('Auto-refresh error:', error);
+      }
+    }, AUTO_REFRESH_INTERVAL) as any;
+  }, [filter]);
+
+  const stopAutoRefresh = useCallback(() => {
+    if (autoRefreshTimerRef.current) {
+      clearInterval(autoRefreshTimerRef.current);
+      autoRefreshTimerRef.current = null;
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       loadReports();
-    }, [filter])
+      
+      // Start auto-refresh when focused
+      startAutoRefresh();
+      
+      // Cleanup: stop auto-refresh when unfocused
+      return () => {
+        stopAutoRefresh();
+      };
+    }, [filter, startAutoRefresh, stopAutoRefresh])
   );
+
+  // Pause auto-refresh when app goes to background
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        // App came to foreground, restart auto-refresh
+        startAutoRefresh();
+      } else {
+        // App went to background, stop auto-refresh to save battery
+        stopAutoRefresh();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+      stopAutoRefresh();
+    };
+  }, [startAutoRefresh, stopAutoRefresh]);
 
   const loadReports = async () => {
     try {
