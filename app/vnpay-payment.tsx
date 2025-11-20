@@ -177,7 +177,7 @@ export default function VNPayPaymentScreen() {
               try {
                 await bookingAPI.cancelPendingBooking(bookingId);
               } catch (error) {
-                console.error('Failed to auto-cancel pending booking:', error);
+                // Ignore auto-cancel errors
               }
             }
           })();
@@ -285,7 +285,7 @@ export default function VNPayPaymentScreen() {
                 try {
                   await bookingAPI.cancelPendingBooking(bookingId);
                 } catch (error) {
-                  console.error('Failed to auto-cancel pending booking:', error);
+                  // Ignore auto-cancel errors
                 }
               }
             })();

@@ -71,11 +71,9 @@ export default function HistoryScreen() {
           const now = Date.now();
           const secondsLeft = Math.max(0, Math.floor((expiresAt - now) / 1000));
           initialTimers[bookingId] = secondsLeft;
-          console.log(`[TIMER INIT] ${bookingId}: ${secondsLeft}s`);
         }
       });
       setCountdownTimers(initialTimers);
-      console.log('[TIMER INIT] Total timers:', Object.keys(initialTimers).length);
     } else {
       setCountdownTimers({});
     }
@@ -83,8 +81,6 @@ export default function HistoryScreen() {
 
   // Countdown timer - update every second
   useEffect(() => {
-    console.log('[TIMER EFFECT] Running, pending bookings:', pendingBookings.length);
-    
     // Clear existing timer
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -92,7 +88,6 @@ export default function HistoryScreen() {
 
     // Only start timer if we have pending bookings
     if (pendingBookings.length > 0) {
-      console.log('[TIMER] Starting new interval');
       timerRef.current = setInterval(() => {
         setCountdownTimers(prev => {
           const updated = {...prev};
@@ -111,7 +106,6 @@ export default function HistoryScreen() {
           
           // Remove expired bookings from the list
           if (expiredIds.length > 0) {
-            console.log('[TIMER] Expired bookings:', expiredIds);
             setPendingBookings(current =>
               current.filter(booking => {
                 const id = booking._id || booking.temp_id;
@@ -144,7 +138,6 @@ export default function HistoryScreen() {
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
-        console.log('[TIMER] Cleanup - stopped timer');
       }
     };
   }, [pendingBookings.length]);

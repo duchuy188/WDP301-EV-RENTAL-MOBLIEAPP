@@ -37,7 +37,7 @@ export default function MyReportsScreen() {
       const response = await reportsAPI.getUserReports(params);
       setReports(response.data || []);
     } catch (error) {
-      console.error('Load reports error:', error);
+      // Handle error silently
     } finally {
       setLoading(false);
     }
@@ -87,7 +87,6 @@ export default function MyReportsScreen() {
     <TouchableOpacity
       style={[styles.reportCard, { backgroundColor: colors.surface }]}
       onPress={() => {
-        console.log('View report:', item._id);
         router.push({
           pathname: '/report-details',
           params: { id: item._id }

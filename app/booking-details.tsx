@@ -188,11 +188,9 @@ export default function BookingDetailsScreen() {
         if (matchingRental) {
           setRentalId(matchingRental._id);
           setRentalStatus(matchingRental.status);
-          console.log('[RENTAL FOUND]', 'Rental ID:', matchingRental._id, 'Status:', matchingRental.status);
         } else {
           setRentalId(null);
           setRentalStatus(null);
-          console.log('[RENTAL NOT FOUND]', 'No rental for this booking yet');
         }
       }
     } catch (error) {
@@ -222,10 +220,6 @@ export default function BookingDetailsScreen() {
       setHasPendingReport(pendingReports.length > 0);
     } catch (error: any) {
       // Nếu API lỗi hoặc chưa có endpoint, cho phép báo cáo (không ẩn nút)
-      // Chỉ log nếu không phải lỗi 404 hoặc 500
-      if (error?.response?.status !== 404 && error?.response?.status !== 500) {
-        console.log('[CHECK REPORT]', 'Error checking reports:', error);
-      }
       setHasPendingReport(false); // Cho phép báo cáo nếu API lỗi
     } finally {
       setCheckingReport(false);
@@ -348,13 +342,6 @@ export default function BookingDetailsScreen() {
     }
 
     const hoursDiff = (pickupDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-    
-    console.log('[EDIT CHECK]', {
-      now: now.toISOString(),
-      pickupDate: pickupDate.toISOString(),
-      hoursDiff: hoursDiff.toFixed(2),
-      canEdit: hoursDiff >= 24
-    });
     
     if (hoursDiff < 24) {
       
