@@ -43,10 +43,8 @@ export default function ReportDetailsScreen() {
     try {
       setLoading(true);
       const response = await reportsAPI.getReportById(reportId);
-      console.log('[REPORT DETAILS] Report data:', response.data);
       setReport(response.data);
     } catch (error: any) {
-      console.error('[REPORT DETAILS] Error:', error);
       Alert.alert('Lỗi', 'Không thể tải thông tin báo cáo');
       router.back();
     } finally {

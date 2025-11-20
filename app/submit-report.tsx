@@ -126,18 +126,10 @@ export default function SubmitReportScreen() {
   };
 
   const handleSubmit = async () => {
-    console.log('=== SUBMIT REPORT DEBUG ===');
-    console.log('rentalId:', rentalId);
-    console.log('bookingId:', bookingId);
-    console.log('issueType:', issueType);
-    console.log('description length:', description.length);
-    console.log('selectedImages count:', selectedImages.length);
-
     if (!validateForm()) return;
 
     // Kiểm tra có rentalId hoặc bookingId
     if (!rentalId && !bookingId) {
-      console.error('ERROR: Missing both rentalId and bookingId');
       Alert.alert('Lỗi', 'Thiếu thông tin thuê xe hoặc đặt xe');
       return;
     }
@@ -147,16 +139,13 @@ export default function SubmitReportScreen() {
 
       // Nếu có ảnh, dùng FormData
       if (selectedImages.length > 0) {
-        console.log('Creating FormData with images...');
         const formData = new FormData();
         
         // Ưu tiên rentalId, nếu không có thì dùng bookingId
         if (rentalId) {
-          console.log('Adding rental_id to FormData:', rentalId);
           formData.append('rental_id', rentalId);
         }
         if (bookingId) {
-          console.log('Adding booking_id to FormData:', bookingId);
           formData.append('booking_id', bookingId);
         }
         
@@ -165,7 +154,6 @@ export default function SubmitReportScreen() {
 
         // Thêm images
         selectedImages.forEach((image, index) => {
-          console.log(`Adding image ${index + 1}:`, image.name);
           formData.append('images', {
             uri: image.uri,
             type: image.type,
@@ -173,9 +161,7 @@ export default function SubmitReportScreen() {
           } as any);
         });
 
-        console.log('Calling API with FormData...');
         const response = await reportsAPI.createReport(formData as any);
-        console.log('API Response:', response);
       } else {
         // Không có ảnh, gửi JSON
         const payload: any = {
@@ -185,17 +171,13 @@ export default function SubmitReportScreen() {
 
         // Ưu tiên rentalId, nếu không có thì dùng bookingId
         if (rentalId) {
-          console.log('Adding rental_id to payload:', rentalId);
           payload.rental_id = rentalId;
         }
         if (bookingId) {
-          console.log('Adding booking_id to payload:', bookingId);
           payload.booking_id = bookingId;
         }
 
-        console.log('Calling API with JSON payload:', payload);
         const response = await reportsAPI.createReport(payload);
-        console.log('API Response:', response);
       }
 
       Alert.alert(
@@ -211,29 +193,14 @@ export default function SubmitReportScreen() {
         ]
       );
     } catch (error: any) {
-      console.error('=== SUBMIT REPORT ERROR ===');
-      console.error('Full error object:', JSON.stringify(error, null, 2));
-      console.error('Error message:', error?.message);
-      console.error('Error response:', error?.response);
-      console.error('Error response data:', error?.response?.data);
-      console.error('Error response status:', error?.response?.status);
-      console.error('Error request:', error?.request);
-      console.error('Error config:', error?.config);
-      console.error('Error config url:', error?.config?.url);
-      console.error('Error config method:', error?.config?.method);
-      console.error('Error config headers:', error?.config?.headers);
-      
       let errorMessage = 'Không thể gửi báo cáo. Vui lòng thử lại.';
       
       if (error?.response?.data?.message) {
         errorMessage = error.response.data.message;
-        console.log('Using server error message:', errorMessage);
       } else if (error?.message) {
         errorMessage = error.message;
-        console.log('Using error.message:', errorMessage);
       } else if (error?.request && !error?.response) {
         errorMessage = 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.';
-        console.log('Network error detected');
       }
 
       Alert.alert('Lỗi', errorMessage);

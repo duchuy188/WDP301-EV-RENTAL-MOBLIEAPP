@@ -219,13 +219,13 @@ export default function EditBookingScreen() {
             const details = await vehiclesAPI.getVehicleById(vehicle.sample_vehicle_id);
             detailsMap[vehicle.sample_vehicle_id] = details;
           } catch (err) {
-            console.error('Error loading vehicle details:', err);
+            // Ignore vehicle details loading errors
           }
         }
       }
       setExpandedVehicles(detailsMap);
     } catch (error) {
-      console.error('Error loading vehicles:', error);
+      // Handle error silently
     } finally {
       setLoadingVehicles(false);
     }

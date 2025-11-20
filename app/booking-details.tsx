@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Alert,
   Modal,
   TextInput,
+  AppState,
 } from 'react-native';
 import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import {
@@ -120,12 +121,87 @@ export default function BookingDetailsScreen() {
   const [checkingReport, setCheckingReport] = useState(false);
   const [hasAnyReport, setHasAnyReport] = useState(false);
 
+  // Auto-refresh timer
+  const autoRefreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const AUTO_REFRESH_INTERVAL = 30000; // 30 seconds
+
+  // Auto-refresh function
+  const startAutoRefresh = useCallback(() => {
+    // Clear existing timer
+    if (autoRefreshTimerRef.current) {
+      clearInterval(autoRefreshTimerRef.current);
+      autoRefreshTimerRef.current = null;
+    }
+    
+    // Set new timer
+    autoRefreshTimerRef.current = setInterval(async () => {
+      try {
+        const response = await bookingAPI.getBooking(bookingId);
+        setBooking(response.booking as any);
+        setCanCancel(response.canCancel || false);
+        const editAllowed = checkCanEditBooking(response.booking);
+        setCanEdit(editAllowed);
+        
+        // Check contract - IMPORTANT: call loadContractByBookingData if no contract_id
+        if ((response.booking as any).contract_id) {
+          setContractId((response.booking as any).contract_id);
+        } else {
+          // Try to find contract again
+          loadContractByBookingData(response.booking);
+        }
+        
+        // Refresh rental info
+        loadRentalByBooking(response.booking);
+        
+        // Refresh report status
+        if (response.booking._id) {
+          checkPendingReportForBooking(response.booking._id);
+        }
+      } catch (error) {
+        // Auto-refresh error silently handled
+      }
+    }, AUTO_REFRESH_INTERVAL) as any;
+  }, [bookingId]);
+
+  const stopAutoRefresh = useCallback(() => {
+    if (autoRefreshTimerRef.current) {
+      clearInterval(autoRefreshTimerRef.current);
+      autoRefreshTimerRef.current = null;
+    }
+  }, []);
+
   // Auto-refresh when screen is focused (e.g., after editing booking)
   useFocusEffect(
     useCallback(() => {
       loadBookingDetails();
-    }, [bookingId])
+      
+      // Start auto-refresh timer when focused
+      startAutoRefresh();
+      
+      // Cleanup: stop auto-refresh when unfocused
+      return () => {
+        stopAutoRefresh();
+      };
+    }, [bookingId, startAutoRefresh, stopAutoRefresh])
   );
+
+  // Pause auto-refresh when app goes to background
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        // App came to foreground, restart auto-refresh
+        startAutoRefresh();
+      } else {
+        // App went to background, stop auto-refresh to save battery
+        stopAutoRefresh();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+      stopAutoRefresh();
+    };
+  }, [startAutoRefresh, stopAutoRefresh]);
 
   const loadBookingDetails = async () => {
     try {
@@ -188,11 +264,9 @@ export default function BookingDetailsScreen() {
         if (matchingRental) {
           setRentalId(matchingRental._id);
           setRentalStatus(matchingRental.status);
-          console.log('[RENTAL FOUND]', 'Rental ID:', matchingRental._id, 'Status:', matchingRental.status);
         } else {
           setRentalId(null);
           setRentalStatus(null);
-          console.log('[RENTAL NOT FOUND]', 'No rental for this booking yet');
         }
       }
     } catch (error) {
@@ -222,10 +296,6 @@ export default function BookingDetailsScreen() {
       setHasPendingReport(pendingReports.length > 0);
     } catch (error: any) {
       // Nếu API lỗi hoặc chưa có endpoint, cho phép báo cáo (không ẩn nút)
-      // Chỉ log nếu không phải lỗi 404 hoặc 500
-      if (error?.response?.status !== 404 && error?.response?.status !== 500) {
-        console.log('[CHECK REPORT]', 'Error checking reports:', error);
-      }
       setHasPendingReport(false); // Cho phép báo cáo nếu API lỗi
     } finally {
       setCheckingReport(false);
@@ -348,13 +418,6 @@ export default function BookingDetailsScreen() {
     }
 
     const hoursDiff = (pickupDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-    
-    console.log('[EDIT CHECK]', {
-      now: now.toISOString(),
-      pickupDate: pickupDate.toISOString(),
-      hoursDiff: hoursDiff.toFixed(2),
-      canEdit: hoursDiff >= 24
-    });
     
     if (hoursDiff < 24) {
       
