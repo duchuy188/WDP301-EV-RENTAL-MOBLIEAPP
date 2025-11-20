@@ -364,6 +364,11 @@ export default function StationDetailsScreen() {
               <Text style={styles.statNumber}>{String(station?.max_capacity ?? 0)}</Text>
               <Text style={styles.statLabel}>Sức chứa</Text>
             </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{String(station?.maintenance_vehicles ?? 0)}</Text>
+              <Text style={styles.statLabel}>Đang bảo trì</Text>
+            </View>
           </View>
 
           {station?.latitude && station?.longitude && (
@@ -708,13 +713,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   statLabel: {
-    fontSize: 13,
+    fontSize: 11,
     color: '#6B7280',
+    textAlign: 'center',
   },
   statDivider: {
     width: 1,
     backgroundColor: '#E5E7EB',
-    marginHorizontal: 16,
+    marginHorizontal: 8,
   },
   sectionTitle: {
     fontSize: 18,
