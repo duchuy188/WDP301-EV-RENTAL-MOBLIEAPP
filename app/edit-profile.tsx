@@ -89,8 +89,6 @@ export default function EditProfileScreen() {
         updatePayload.avatar = editForm.avatar;
       }
 
-      console.log('Updating profile with:', updatePayload);
-
       // Call real API to update profile
       await authAPI.updateProfile(updatePayload);
 
@@ -106,7 +104,6 @@ export default function EditProfileScreen() {
       ]);
     } catch (error: any) {
       setIsUpdating(false);
-      console.error('Update profile error:', error);
       Alert.alert('Lỗi', error.message || 'Không thể cập nhật thông tin. Vui lòng thử lại.');
     }
   };
@@ -778,5 +775,6 @@ export default function EditProfileScreen() {
     </View>
   );
 }
+
 
 
