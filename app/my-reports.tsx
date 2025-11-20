@@ -39,13 +39,12 @@ export default function MyReportsScreen() {
     
     // Set new timer
     autoRefreshTimerRef.current = setInterval(async () => {
-      console.log('🔄 Auto-refreshing reports...');
       try {
         const params = filter !== 'all' ? { status: filter } : undefined;
         const response = await reportsAPI.getUserReports(params);
         setReports(response.data || []);
       } catch (error) {
-        console.log('Auto-refresh error:', error);
+        // Auto-refresh error silently handled
       }
     }, AUTO_REFRESH_INTERVAL) as any;
   }, [filter]);

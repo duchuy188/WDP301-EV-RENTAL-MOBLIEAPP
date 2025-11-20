@@ -135,7 +135,6 @@ export default function BookingDetailsScreen() {
     
     // Set new timer
     autoRefreshTimerRef.current = setInterval(async () => {
-      console.log('🔄 Auto-refreshing booking details...');
       try {
         const response = await bookingAPI.getBooking(bookingId);
         setBooking(response.booking as any);
@@ -159,7 +158,7 @@ export default function BookingDetailsScreen() {
           checkPendingReportForBooking(response.booking._id);
         }
       } catch (error) {
-        console.log('Auto-refresh error:', error);
+        // Auto-refresh error silently handled
       }
     }, AUTO_REFRESH_INTERVAL) as any;
   }, [bookingId]);

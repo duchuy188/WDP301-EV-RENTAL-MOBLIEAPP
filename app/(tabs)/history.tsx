@@ -80,7 +80,6 @@ export default function HistoryScreen() {
     
     // Set new timer
     autoRefreshTimerRef.current = setInterval(async () => {
-      console.log('🔄 Auto-refreshing data...');
       await loadBookingsAndStats();
       loadPendingBookings();
     }, AUTO_REFRESH_INTERVAL);
