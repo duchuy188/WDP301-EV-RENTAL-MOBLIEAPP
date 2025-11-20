@@ -205,7 +205,7 @@ export default function SubmitReportScreen() {
           {
             text: 'OK',
             onPress: () => {
-              router.back();
+              router.push('/my-reports');
             },
           },
         ]

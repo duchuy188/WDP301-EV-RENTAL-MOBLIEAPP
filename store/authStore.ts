@@ -8,6 +8,7 @@ export interface User {
   name: string;
   email: string;
   phone?: string;
+  address?: string;
   licenseNumber?: string;
   profileImage?: string;
 }
@@ -21,6 +22,7 @@ interface AuthState {
   googleLogin: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuthState: () => Promise<void>;
+  loadProfile: () => Promise<void>;
 }
 
 interface RegisterData {
@@ -35,6 +37,7 @@ const mapProfileToUser = (p: profile | any, emailFallback?: string): User => ({
   name: p?.fullname ?? p?.name ?? '',
   email: p?.email ?? emailFallback ?? '',
   phone: p?.phone ?? '',
+  address: p?.address ?? '',
   licenseNumber: p?.licenseNumber ?? '',
   profileImage: p?.avatar ?? p?.profileImage ?? '',
 });
@@ -218,6 +221,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     } catch (error) {
       
+    }
+  },
+
+  loadProfile: async () => {
+    try {
+      const pRes = await authAPI.getProfile();
+      if (pRes && pRes.success) {
+        const user = mapProfileToUser(pRes.data);
+        await AsyncStorage.setItem('user', JSON.stringify(user));
+        set({ user, isAuthenticated: true });
+      }
+    } catch (error) {
+      throw error;
     }
   },
 }));

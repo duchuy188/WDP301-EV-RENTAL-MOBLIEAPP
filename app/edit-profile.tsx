@@ -76,13 +76,21 @@ export default function EditProfileScreen() {
     setIsUpdating(true);
 
     try {
-      // Call real API to update profile
-      await authAPI.updateProfile({
+      // Prepare update payload
+      const updatePayload: any = {
         fullname: editForm.name,
         phone: editForm.phone,
         address: editForm.address,
-        avatar: editForm.avatar,
-      });
+      };
+
+      // Only include avatar if it's a new file upload (object with uri)
+      // Don't send the old URL string, let server keep existing avatar
+      if (editForm.avatar && typeof editForm.avatar === 'object' && 'uri' in editForm.avatar) {
+        updatePayload.avatar = editForm.avatar;
+      }
+
+      // Call real API to update profile
+      await authAPI.updateProfile(updatePayload);
 
       // Reload profile from server to get updated data
       await loadProfile();
@@ -500,7 +508,7 @@ export default function EditProfileScreen() {
       {/* Content */}
       <KeyboardAvoidingView
         style={styles.content}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -625,7 +633,7 @@ export default function EditProfileScreen() {
       >
         <View style={styles.modalOverlay}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={{ width: '100%' }}
           >
             <View style={styles.modalContainer}>
@@ -767,5 +775,6 @@ export default function EditProfileScreen() {
     </View>
   );
 }
+
 
 

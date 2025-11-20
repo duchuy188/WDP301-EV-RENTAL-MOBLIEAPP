@@ -112,6 +112,7 @@ export default function BookingDetailsScreen() {
   const [contractId, setContractId] = useState<string | null>(null);
   const [loadingContract, setLoadingContract] = useState(false);
   const [rentalId, setRentalId] = useState<string | null>(null);
+  const [rentalStatus, setRentalStatus] = useState<string | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [expandedNotes, setExpandedNotes] = useState(false);
@@ -186,9 +187,12 @@ export default function BookingDetailsScreen() {
         
         if (matchingRental) {
           setRentalId(matchingRental._id);
-          
+          setRentalStatus(matchingRental.status);
+          console.log('[RENTAL FOUND]', 'Rental ID:', matchingRental._id, 'Status:', matchingRental.status);
         } else {
-          
+          setRentalId(null);
+          setRentalStatus(null);
+          console.log('[RENTAL NOT FOUND]', 'No rental for this booking yet');
         }
       }
     } catch (error) {
@@ -816,8 +820,8 @@ export default function BookingDetailsScreen() {
             </View>
           ) : null}
 
-          {/* Report Issue Button for Confirmed Bookings - Chỉ hiện nếu chưa có báo cáo pending */}
-          {booking.status === 'confirmed' && !hasPendingReport && !checkingReport && (
+          {/* Report Issue Button - Chỉ hiển thị khi đã có rental ĐANG HOẠT ĐỘNG (status 'active') */}
+          {rentalId && rentalStatus === 'active' && (
             <View style={styles.section}>
               <TouchableOpacity
                 style={[styles.reportButton, { backgroundColor: '#EF4444' }]}
@@ -826,7 +830,7 @@ export default function BookingDetailsScreen() {
                     pathname: '/submit-report',
                     params: {
                       bookingId: booking._id,
-                      rentalId: rentalId || '',
+                      rentalId: rentalId,
                     }
                   });
                 }}
