@@ -339,7 +339,8 @@ export default function VehicleDetailsScreen() {
           onPress={() => {
             // Navigate to booking screen with vehicle info
             const selectedColor = vehicle.available_colors?.[selectedColorIndex];
-            const stationInfo = selectedColor?.stations?.[0] || vehicle.current_color_info?.station;
+            // Ưu tiên "Trạm đang thuê" trước, sau đó mới lấy từ danh sách "Trạm có xe"
+            const stationInfo = vehicle.current_color_info?.station || selectedColor?.stations?.[0];
             
             if (!stationInfo) {
               Alert.alert('Lỗi', 'Không tìm thấy thông tin trạm');
