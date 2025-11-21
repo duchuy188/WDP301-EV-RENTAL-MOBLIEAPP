@@ -9,6 +9,7 @@ import {
   TextInput,
   Dimensions,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import {
   Search,
@@ -43,6 +44,7 @@ export default function HomeScreen() {
   const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
   const [locationPermission, setLocationPermission] = useState(false);
   const [distancesCalculated, setDistancesCalculated] = useState(false);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
   const mapRef = useRef<MapView>(null);
 
   useEffect(() => {
@@ -63,6 +65,7 @@ export default function HomeScreen() {
 
   const requestLocationPermission = async () => {
     try {
+      setIsLoadingLocation(true);
       const { status } = await Location.requestForegroundPermissionsAsync();
       
       
@@ -95,6 +98,8 @@ export default function HomeScreen() {
       }
     } catch (error) {
       
+    } finally {
+      setIsLoadingLocation(false);
     }
   };
 
@@ -149,6 +154,7 @@ export default function HomeScreen() {
 
     setStations(sorted);
     setDistancesCalculated(true);
+    setIsLoadingLocation(false);
   };
 
   const geocodeAddress = async (
@@ -279,10 +285,20 @@ export default function HomeScreen() {
     const isNearest = index === 0 && station.distance && station.distance > 0;
     
     const handlePress = () => {
+      // Kiểm tra xem vị trí đã được load chưa
+      if (isLoadingLocation || !distancesCalculated) {
+        Alert.alert(
+          'Đang tải vị trí',
+          'Vui lòng đợi một chút để hệ thống xác định vị trí của bạn và tính khoảng cách đến các trạm xe.',
+          [{ text: 'Đồng ý', style: 'default' }]
+        );
+        return;
+      }
+      
       // Navigate to station details
       router.push({
         pathname: '/station-details',
-        params: { 
+        params: {
           id: station._id,
           distance: station.distance?.toString() || '0'
         }
@@ -507,9 +523,19 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={[styles.viewDetailsButton, { backgroundColor: colors.primary }]}
                 onPress={() => {
+                  // Kiểm tra xem vị trí đã được load chưa
+                  if (isLoadingLocation || !distancesCalculated) {
+                    Alert.alert(
+                      'Đang tải vị trí',
+                      'Vui lòng đợi một chút để hệ thống xác định vị trí của bạn và tính khoảng cách đến các trạm xe.',
+                      [{ text: 'Đồng ý', style: 'default' }]
+                    );
+                    return;
+                  }
+                  
                   router.push({
                     pathname: '/station-details',
-                    params: { 
+                    params: {
                       id: selectedStation._id,
                       distance: selectedStation.distance?.toString() || '0'
                     }
