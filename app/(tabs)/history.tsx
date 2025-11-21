@@ -80,7 +80,7 @@ export default function HistoryScreen() {
     
     // Set new timer
     autoRefreshTimerRef.current = setInterval(async () => {
-      await loadBookingsAndStats();
+      await loadBookingsAndStats(true); // Silent refresh
       loadPendingBookings();
     }, AUTO_REFRESH_INTERVAL);
   };
@@ -192,9 +192,9 @@ export default function HistoryScreen() {
     };
   }, [pendingBookings.length]);
 
-  const loadBookingsAndStats = async () => {
+  const loadBookingsAndStats = async (silent: boolean = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       
       // Fetch ALL bookings to calculate stats
       const allResponse = await bookingAPI.getBookings({ 
@@ -240,7 +240,7 @@ export default function HistoryScreen() {
     } catch (error) {
       
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
